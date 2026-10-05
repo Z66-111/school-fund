@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Сургуулийн сан (School Fund)
 
-## Getting Started
+Teachers mark attendance, the app bills parents monthly for food by days present,
+an accountant registers bank payments, and each class tracks an annual fund with a
+spending report. UI is in Mongolian; amounts are MNT.
 
-First, run the development server:
+## Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+    npm install
+    cp .env.example .env
+    npx prisma db push
+    npm run db:seed
+    npm run dev
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env` is not committed; `cp .env.example .env` creates it with a local SQLite `DATABASE_URL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Log in at http://localhost:3000 with `admin@school.local` / `changeme`
+(also `teacher@`, `accountant@`, `parent@`). Change these passwords from
+Admin → Хэрэглэгчид before real use.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tests
 
-## Learn More
+    npm test        # unit + service tests (SQLite test.db)
+    npm run e2e     # Playwright smoke test (starts its own server on :3100)
 
-To learn more about Next.js, take a look at the following resources:
+## Roles
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Админ: school years, holidays, classes, users, rates, reopen a closed month.
+- Багш: own class roster, parents, attendance, close month, expenses, reports.
+- Нягтлан: outstanding balances, register and delete payments, monthly food report.
+- Эцэг эх: own children's attendance, bills, payments, class fund report.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Production
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set `DATABASE_URL` to a persistent SQLite file (e.g. `file:/data/school.db`) and
+run `npx prisma db push` once. To move to Postgres, change `provider` in
+`prisma/schema.prisma` to `postgresql`, set `DATABASE_URL`, and run
+`npx prisma migrate dev`. No enum types are used, so the schema ports as is.
