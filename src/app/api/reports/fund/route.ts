@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getActor } from "@/lib/session";
 import { classFundReport, fundReportCsv } from "@/services/reports";
+import { csvDisposition } from "@/lib/csv";
 import { AppError } from "@/lib/errors";
 
 export async function GET(req: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const r = await classFundReport(actor, classId);
     return new Response(fundReportCsv(r), {
-      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="fund-${r.className}.csv"` },
+      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": csvDisposition(`fund-${r.className}`) },
     });
   } catch (e) {
     if (e instanceof AppError) return new Response(e.message, { status: e.code === "FORBIDDEN" ? 403 : 400 });
