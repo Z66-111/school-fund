@@ -9,13 +9,14 @@ import { mn } from "@/lib/i18n/mn";
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const actor = await requireClassPage(id, "TEACHER", "ADMIN");
+  const isTeacher = actor.role === "TEACHER";
   const expenses = await listExpenses(actor, id);
   const total = expenses.reduce((a, e) => a + e.amount, 0);
   return (
     <div className="grid gap-6 md:grid-cols-3">
-      <section className="md:col-span-2">
+      <section className={isTeacher ? "md:col-span-2" : "md:col-span-3"}>
         <table className="w-full border bg-white text-sm">
-          <thead><tr><th className="p-2 text-left">{mn.common.date}</th><th className="text-left">{mn.expense.itemTitle}</th><th>{mn.common.amount}</th><th className="text-left">{mn.common.note}</th><th>{mn.common.actions}</th></tr></thead>
+          <thead><tr><th className="p-2 text-left">{mn.common.date}</th><th className="text-left">{mn.expense.itemTitle}</th><th>{mn.common.amount}</th><th className="text-left">{mn.common.note}</th>{isTeacher && <th>{mn.common.actions}</th>}</tr></thead>
           <tbody>
             {expenses.map((e) => (
               <tr key={e.id} className="border-t align-top">
@@ -23,7 +24,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 <td className="p-2">{e.title}</td>
                 <td className="p-2 text-right"><Money v={e.amount} /></td>
                 <td className="p-2">{e.note}</td>
-                <td className="p-2">
+                {isTeacher && <td className="p-2">
                   <details>
                     <summary className="cursor-pointer text-blue-700">{mn.common.edit}</summary>
                     <ActionForm action={updateExpenseAction} submitLabel={mn.common.save}>
@@ -39,14 +40,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     <input type="hidden" name="classId" value={id} />
                     <input type="hidden" name="expenseId" value={e.id} />
                   </ActionForm>
-                </td>
+                </td>}
               </tr>
             ))}
           </tbody>
-          <tfoot><tr className="border-t font-semibold"><td className="p-2" colSpan={2}>{mn.common.total}</td><td className="p-2 text-right"><Money v={total} /></td><td colSpan={2} /></tr></tfoot>
+          <tfoot><tr className="border-t font-semibold"><td className="p-2" colSpan={2}>{mn.common.total}</td><td className="p-2 text-right"><Money v={total} /></td><td colSpan={isTeacher ? 2 : 1} /></tr></tfoot>
         </table>
       </section>
-      <section className="rounded border bg-white p-4">
+      {isTeacher && <section className="rounded border bg-white p-4">
         <h2 className="mb-2 font-semibold">{mn.expense.add}</h2>
         <ActionForm action={addExpenseAction} submitLabel={mn.common.add}>
           <input type="hidden" name="classId" value={id} />
@@ -55,7 +56,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <input name="amount" type="number" min={1} step={1} required placeholder={mn.common.amount} className="rounded border p-1" />
           <input name="note" placeholder={mn.common.note} className="rounded border p-1" />
         </ActionForm>
-      </section>
+      </section>}
     </div>
   );
 }

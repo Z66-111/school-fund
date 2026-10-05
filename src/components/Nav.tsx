@@ -10,6 +10,8 @@ const links: Record<Role, { href: string; label: string }[]> = {
     { href: "/admin/users", label: mn.nav.users },
     { href: "/admin/school-years", label: mn.nav.schoolYears },
     { href: "/admin/holidays", label: mn.nav.holidays },
+    { href: "/accountant", label: mn.nav.outstanding },
+    { href: "/accountant/payments", label: mn.nav.payments },
   ],
   TEACHER: [{ href: "/teacher", label: mn.nav.attendance }],
   ACCOUNTANT: [

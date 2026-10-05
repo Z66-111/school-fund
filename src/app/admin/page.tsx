@@ -23,7 +23,7 @@ export default async function AdminHome() {
     <div>
       <h1 className="mb-2 text-xl font-semibold">{active.name}</h1>
       <table className="w-full border bg-white text-sm">
-        <thead><tr><th className="p-2 text-left">{mn.common.class}</th><th>{mn.common.teacher}</th><th>{mn.nav.students}</th><th>{mn.class.foodOutstanding}</th><th>{mn.class.fundOutstanding}</th><th /></tr></thead>
+        <thead><tr><th className="p-2 text-left">{mn.common.class}</th><th>{mn.common.teacher}</th><th>{mn.nav.students}</th><th>{mn.class.foodOutstanding}</th><th>{mn.class.fundOutstanding}</th><th /><th /></tr></thead>
         <tbody>
           {classes.map((c) => {
             const t = byClass.get(c.id) ?? { food: 0, fund: 0 };
@@ -34,6 +34,7 @@ export default async function AdminHome() {
                 <td className="text-center">{c._count.students}</td>
                 <td className="text-right"><Money v={t.food} /></td>
                 <td className="text-right"><Money v={t.fund} /></td>
+                <td className="p-1 text-center"><Link href={`/teacher/class/${c.id}/attendance`} className="underline">{mn.nav.attendance}</Link></td>
                 <td className="p-1 text-center"><Link href={`/admin/classes/${c.id}/report`} className="underline">{mn.nav.report}</Link></td>
               </tr>
             );

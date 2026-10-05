@@ -14,7 +14,8 @@ import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string }> }) {
   const { id } = await params;
-  await requireClassPage(id, "TEACHER", "ADMIN");
+  const actor = await requireClassPage(id, "TEACHER", "ADMIN");
+  const isTeacher = actor.role === "TEACHER";
   const sp = await searchParams;
   const today = todayDate();
   const year = Number(sp.year ?? today.getUTCFullYear());
@@ -43,13 +44,13 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <span className="font-semibold">{year} {mn.months[month - 1]}</span>
         <Link href={`?year=${next.y}&month=${next.m}`} className="underline">→</Link>
         {closed && <span className="rounded bg-yellow-100 px-2">{mn.attendance.closed}</span>}
-        {!closed && todayInMonth && (
+        {isTeacher && !closed && todayInMonth && (
           <ActionForm action={markAllPresentAction} submitLabel={mn.attendance.markAllPresentToday} className="inline">
             <input type="hidden" name="classId" value={id} />
             <input type="hidden" name="date" value={todayIso} />
           </ActionForm>
         )}
-        {!closed && !isFutureMonth(year, month) && (
+        {isTeacher && !closed && !isFutureMonth(year, month) && (
           <ActionForm action={closeMonthAction} submitLabel={mn.attendance.closeMonth} className="inline" confirm={mn.attendance.confirmClose}>
             <input type="hidden" name="classId" value={id} />
             <input type="hidden" name="year" value={year} />
@@ -57,7 +58,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </ActionForm>
         )}
       </div>
-      <AttendanceGrid key={`${year}-${month}`} students={students.map((s) => ({ id: s.id, name: s.name }))} days={days} initial={initial} readOnly={closed} />
+      <AttendanceGrid key={`${year}-${month}`} students={students.map((s) => ({ id: s.id, name: s.name }))} days={days} initial={initial} readOnly={closed || actor.role !== "TEACHER"} />
     </div>
   );
 }
