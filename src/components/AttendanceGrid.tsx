@@ -15,11 +15,20 @@ export function AttendanceGrid({ students, days, initial, readOnly }: {
 }) {
   const [cells, setCells] = useState(initial);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const [seeded, setSeeded] = useState(initial);
+  if (seeded !== initial) { // re-seed when a revalidated server render passes new data
+    setSeeded(initial);
+    setCells(initial);
+  }
   const [, start] = useTransition();
 
   const click = (studentId: string, iso: string) => {
+    const key = `${studentId}|${iso}`;
+    setPending((p) => new Set(p).add(key));
     start(async () => {
       const r = await toggleAttendanceAction(studentId, iso);
+      setPending((p) => { const n = new Set(p); n.delete(key); return n; });
       if (r.ok) {
         setError(null);
         setCells((c) => ({ ...c, [`${studentId}|${iso}`]: r.status }));
@@ -53,7 +62,7 @@ export function AttendanceGrid({ students, days, initial, readOnly }: {
                 <td className="sticky left-0 bg-white p-1 whitespace-nowrap">{s.name}</td>
                 {days.map((d) => {
                   const st = cells[`${s.id}|${d.iso}`] ?? null;
-                  const disabled = readOnly || !d.chargeable || d.future;
+                  const disabled = readOnly || !d.chargeable || d.future || pending.has(`${s.id}|${d.iso}`);
                   return (
                     <td key={d.iso} className={`p-0 text-center ${d.chargeable ? color(st) : "bg-gray-200"}`}>
                       <button disabled={disabled} onClick={() => click(s.id, d.iso)} className="h-7 w-7 disabled:cursor-not-allowed">

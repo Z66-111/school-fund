@@ -32,14 +32,18 @@ export async function toggleAttendance(actor: Actor, input: unknown, now: Date =
 
   const existing = await prisma.attendance.findUnique({ where: { studentId_date: { studentId: v.studentId, date } } });
   if (!existing) {
-    await prisma.attendance.create({ data: { studentId: v.studentId, date, status: "PRESENT" } });
+    await prisma.attendance.upsert({
+      where: { studentId_date: { studentId: v.studentId, date } },
+      create: { studentId: v.studentId, date, status: "PRESENT" },
+      update: { status: "PRESENT" },
+    });
     return "PRESENT";
   }
   if (existing.status === "PRESENT") {
     await prisma.attendance.update({ where: { id: existing.id }, data: { status: "ABSENT" } });
     return "ABSENT";
   }
-  await prisma.attendance.delete({ where: { id: existing.id } });
+  await prisma.attendance.deleteMany({ where: { studentId: v.studentId, date } });
   return null;
 }
 

@@ -47,7 +47,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </ActionForm>
         )}
       </div>
-      <AttendanceGrid students={students.map((s) => ({ id: s.id, name: s.name }))} days={days} initial={initial} readOnly={closed} />
+      <AttendanceGrid key={`${year}-${month}`} students={students.map((s) => ({ id: s.id, name: s.name }))} days={days} initial={initial} readOnly={closed} />
     </div>
   );
 }
