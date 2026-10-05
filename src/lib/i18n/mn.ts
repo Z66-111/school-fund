@@ -19,6 +19,7 @@ export const mn = {
   roles: { ADMIN: "Админ", TEACHER: "Багш", ACCOUNTANT: "Нягтлан", PARENT: "Эцэг эх" },
   login: { title: "Нэвтрэх", email: "И-мэйл", password: "Нууц үг", submit: "Нэвтрэх" },
   common: {
+    apply: "Харуулах",
     name: "Нэр",
     date: "Огноо",
     amount: "Дүн",

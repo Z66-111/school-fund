@@ -19,7 +19,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ y
           <select name="year" defaultValue={year.id} className="rounded border p-1">
             {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
           </select>{" "}
-          <button className="underline">OK</button>
+          <button className="underline">{mn.common.apply}</button>
         </form>
         <table className="w-full border bg-white text-sm">
           <tbody>

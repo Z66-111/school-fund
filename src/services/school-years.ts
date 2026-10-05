@@ -27,7 +27,7 @@ const schoolYearSchema = z
   })
   .refine(
     (v) => {
-      // Zod 4 runs object-level refines even when field checks failed; skip then (field errors already reported).
+      // Zod 3 runs object-level refines even when field checks failed; skip then (field errors already reported).
       if (!dateStringSchema.safeParse(v.startDate).success || !dateStringSchema.safeParse(v.endDate).success) return true;
       return parseDateOnly(v.startDate) < parseDateOnly(v.endDate);
     },
