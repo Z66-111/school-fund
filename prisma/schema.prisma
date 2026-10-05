@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+
+  sessions           Session[]
+  classes            Class[]         @relation("ClassTeacher")
+  children           ParentStudent[]
+  paymentsRegistered Payment[]
+  expenses           Expense[]
+  monthCloses        MonthClose[]
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+}
+
+model SchoolYear {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+
+  classes  Class[]
+  holidays Holiday[]
+  expenses Expense[]
+}
+
+model Holiday {
+  id           String     @id @default(cuid())
+  schoolYearId String
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  date         DateTime
+  name         String
+
+  @@unique([schoolYearId, date])
+}
+
+model Class {
+  id               String     @id @default(cuid())
+  name             String
+  schoolYearId     String
+  schoolYear       SchoolYear @relation(fields: [schoolYearId], references: [id])
+  teacherId        String?
+  teacher          User?      @relation("ClassTeacher", fields: [teacherId], references: [id])
+  dailyFoodRate    Int
+  annualFundAmount Int
+
+  students    Student[]
+  monthCloses MonthClose[]
+  expenses    Expense[]
+
+  @@unique([schoolYearId, name])
+}
+
+model Student {
+  id       String  @id @default(cuid())
+  classId  String
+  class    Class   @relation(fields: [classId], references: [id])
+  name     String
+  isActive Boolean @default(true)
+
+  parents    ParentStudent[]
+  attendance Attendance[]
+  invoices   FoodInvoice[]
+  payments   Payment[]
+}
+
+model ParentStudent {
+  parentUserId String
+  parent       User    @relation(fields: [parentUserId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([parentUserId, studentId])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime
+  status    String
+
+  @@unique([studentId, date])
+}
+
+model MonthClose {
+  id         String   @id @default(cuid())
+  classId    String
+  class      Class    @relation(fields: [classId], references: [id])
+  year       Int
+  month      Int
+  closedAt   DateTime @default(now())
+  closedById String
+  closedBy   User     @relation(fields: [closedById], references: [id])
+
+  invoices FoodInvoice[]
+
+  @@unique([classId, year, month])
+}
+
+model FoodInvoice {
+  id           String     @id @default(cuid())
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  monthCloseId String
+  monthClose   MonthClose @relation(fields: [monthCloseId], references: [id], onDelete: Cascade)
+  year         Int
+  month        Int
+  daysPresent  Int
+  rate         Int
+  amount       Int
+  createdAt    DateTime   @default(now())
+
+  @@unique([studentId, year, month])
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  kind           String
+  amount         Int
+  paidAt         DateTime
+  note           String    @default("")
+  registeredById String
+  registeredBy   User      @relation(fields: [registeredById], references: [id])
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+  deleteReason   String?
+}
+
+model Expense {
+  id           String     @id @default(cuid())
+  classId      String
+  class        Class      @relation(fields: [classId], references: [id])
+  schoolYearId String
+  schoolYear   SchoolYear @relation(fields: [schoolYearId], references: [id])
+  date         DateTime
+  title        String
+  amount       Int
+  note         String     @default("")
+  createdById  String
+  createdBy    User       @relation(fields: [createdById], references: [id])
+  createdAt    DateTime   @default(now())
+}
