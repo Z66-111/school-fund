@@ -8,10 +8,21 @@ type Props = {
   children: React.ReactNode;
   className?: string;
   confirm?: string;
+  labels?: Record<string, string>;
 };
 
-export function ActionForm({ action, submitLabel, children, className, confirm }: Props) {
+export function ActionForm({ action, submitLabel, children, className, confirm, labels }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
+  const fieldMessages =
+    state && !state.ok && state.fieldErrors
+      ? [
+          ...new Set(
+            Object.entries(state.fieldErrors).flatMap(([k, msgs]) =>
+              msgs.map((msg) => (labels?.[k] ? `${labels[k]}: ${msg}` : msg)),
+            ),
+          ),
+        ]
+      : [];
   return (
     <form
       action={formAction}
@@ -24,12 +35,13 @@ export function ActionForm({ action, submitLabel, children, className, confirm }
       {state && !state.ok && (
         <div className="text-sm text-red-700">
           <p>{state.error}</p>
-          {state.fieldErrors &&
-            Object.entries(state.fieldErrors).map(([k, msgs]) => (
-              <p key={k}>
-                {k}: {msgs.join(", ")}
-              </p>
-            ))}
+          {fieldMessages.length > 0 && (
+            <ul>
+              {fieldMessages.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {state?.ok && state.message && <p className="text-sm text-green-700">{state.message}</p>}
