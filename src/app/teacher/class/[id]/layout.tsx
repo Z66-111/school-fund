@@ -13,6 +13,7 @@ export default async function ClassLayout({ children, params }: { children: Reac
     { href: `${base}/students`, label: mn.nav.students },
     { href: `${base}/expenses`, label: mn.nav.expenses },
     { href: `${base}/report`, label: mn.nav.report },
+    { href: `${base}/schedule`, label: mn.nav.schedule },
   ];
   return (
     <div>
