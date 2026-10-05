@@ -23,6 +23,8 @@ export async function addHoliday(actor: Actor, input: unknown) {
   if (date < year.startDate || date > year.endDate) {
     throw new ValidationError({ date: [mn.errors.dateOutsideYear] });
   }
+  const existing = await prisma.holiday.findUnique({ where: { schoolYearId_date: { schoolYearId: v.schoolYearId, date } } });
+  if (existing) throw new ValidationError({ date: [mn.errors.holidayExists] });
   return prisma.holiday.create({ data: { schoolYearId: v.schoolYearId, date, name: v.name } });
 }
 

@@ -10,7 +10,7 @@ describe("holidays", () => {
     const h = await addHoliday(actorOf(admin), { schoolYearId: y.id, date: "2026-11-26", name: "Тусгаар тогтнолын өдөр" });
     expect(toISODate(h.date)).toBe("2026-11-26");
     await expect(addHoliday(actorOf(admin), { schoolYearId: y.id, date: "2025-01-01", name: "x" })).rejects.toMatchObject({ code: "VALIDATION" });
-    await expect(addHoliday(actorOf(admin), { schoolYearId: y.id, date: "2026-11-26", name: "dup" })).rejects.toThrow();
+    await expect(addHoliday(actorOf(admin), { schoolYearId: y.id, date: "2026-11-26", name: "dup" })).rejects.toMatchObject({ code: "VALIDATION" });
   });
   it("lists, exposes dates, deletes; teacher forbidden to add", async () => {
     const admin = await f.user("ADMIN");
