@@ -1,3 +1,4 @@
+import { requireClassPage } from "@/lib/page-auth";
 import { listStudents } from "@/services/students";
 import { addStudentAction, setStudentActiveAction, deleteStudentAction, linkParentAction, createParentAction } from "@/actions/students";
 import { ActionForm } from "@/components/ActionForm";
@@ -5,6 +6,7 @@ import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ all?: string }> }) {
   const { id } = await params;
+  await requireClassPage(id, "TEACHER", "ADMIN");
   const { all } = await searchParams;
   const students = await listStudents(id, all === "1");
   return (

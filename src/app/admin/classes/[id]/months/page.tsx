@@ -1,9 +1,11 @@
+import { requirePage } from "@/lib/page-auth";
 import { listMonthCloses } from "@/services/month-close";
 import { reopenMonthAction } from "@/actions/month-close";
 import { ActionForm } from "@/components/ActionForm";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  await requirePage("ADMIN");
   const { id } = await params;
   const closes = await listMonthCloses(id);
   return (

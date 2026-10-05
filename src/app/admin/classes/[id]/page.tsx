@@ -1,3 +1,4 @@
+import { requirePage } from "@/lib/page-auth";
 import Link from "next/link";
 import { getClass } from "@/services/classes";
 import { listUsers } from "@/services/users";
@@ -6,6 +7,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  await requirePage("ADMIN");
   const { id } = await params;
   const c = await getClass(id);
   const teachers = await listUsers("TEACHER");

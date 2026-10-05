@@ -1,4 +1,4 @@
-import { requirePage } from "@/lib/page-auth";
+import { requireClassPage } from "@/lib/page-auth";
 import { listExpenses } from "@/services/expenses";
 import { addExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
 import { ActionForm } from "@/components/ActionForm";
@@ -7,8 +7,8 @@ import { toISODate, todayDate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const actor = await requirePage("TEACHER");
   const { id } = await params;
+  const actor = await requireClassPage(id, "TEACHER", "ADMIN");
   const expenses = await listExpenses(actor, id);
   const total = expenses.reduce((a, e) => a + e.amount, 0);
   return (

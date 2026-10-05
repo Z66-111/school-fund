@@ -1,3 +1,4 @@
+import { requireClassPage } from "@/lib/page-auth";
 import Link from "next/link";
 import { getClass } from "@/services/classes";
 import { listStudents } from "@/services/students";
@@ -13,6 +14,7 @@ import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string }> }) {
   const { id } = await params;
+  await requireClassPage(id, "TEACHER", "ADMIN");
   const sp = await searchParams;
   const today = todayDate();
   const year = Number(sp.year ?? today.getUTCFullYear());

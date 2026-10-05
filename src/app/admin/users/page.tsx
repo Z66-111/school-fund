@@ -1,3 +1,4 @@
+import { requirePage } from "@/lib/page-auth";
 import { listUsers } from "@/services/users";
 import { createUserAction, resetPasswordAction } from "@/actions/users";
 import { ActionForm } from "@/components/ActionForm";
@@ -5,6 +6,7 @@ import { ROLES } from "@/lib/roles";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page() {
+  await requirePage("ADMIN");
   const users = await listUsers();
   return (
     <div className="grid gap-6 md:grid-cols-2">

@@ -1,4 +1,4 @@
-import { requirePage } from "@/lib/page-auth";
+import { requireClassPage } from "@/lib/page-auth";
 import { classFundReport, monthlyFoodReport } from "@/services/reports";
 import { FundReportView } from "@/components/FundReport";
 import { FoodReportView } from "@/components/FoodReport";
@@ -6,8 +6,8 @@ import { MonthPicker } from "@/components/MonthPicker";
 import { todayDate } from "@/lib/dates";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string }> }) {
-  const actor = await requirePage("TEACHER");
   const { id } = await params;
+  const actor = await requireClassPage(id, "TEACHER", "ADMIN");
   const sp = await searchParams;
   const t = todayDate();
   const year = Number(sp.year ?? t.getUTCFullYear());

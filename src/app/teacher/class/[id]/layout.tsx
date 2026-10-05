@@ -1,18 +1,11 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { requirePage } from "@/lib/page-auth";
-import { assertClassAccess } from "@/lib/authz";
+import { requireClassPage } from "@/lib/page-auth";
 import { getClass } from "@/services/classes";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function ClassLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const actor = await requirePage("TEACHER");
-  try {
-    await assertClassAccess(actor, id);
-  } catch {
-    redirect("/forbidden");
-  }
+  await requireClassPage(id, "TEACHER", "ADMIN");
   const c = await getClass(id);
   const base = `/teacher/class/${id}`;
   const tabs = [

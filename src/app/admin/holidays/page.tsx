@@ -1,3 +1,4 @@
+import { requirePage } from "@/lib/page-auth";
 import { listSchoolYears } from "@/services/school-years";
 import { listHolidays } from "@/services/holidays";
 import { addHolidayAction, deleteHolidayAction } from "@/actions/holidays";
@@ -6,6 +7,7 @@ import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+  await requirePage("ADMIN");
   const sp = await searchParams;
   const years = await listSchoolYears();
   const year = years.find((y) => y.id === sp.year) ?? years.find((y) => y.isActive) ?? years[0];

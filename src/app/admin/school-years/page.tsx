@@ -1,3 +1,4 @@
+import { requirePage } from "@/lib/page-auth";
 import { listSchoolYears } from "@/services/school-years";
 import { createSchoolYearAction, activateSchoolYearAction } from "@/actions/school-years";
 import { ActionForm } from "@/components/ActionForm";
@@ -5,6 +6,7 @@ import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
 export default async function Page() {
+  await requirePage("ADMIN");
   const years = await listSchoolYears();
   return (
     <div className="grid gap-6 md:grid-cols-2">
