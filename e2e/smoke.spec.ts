@@ -38,11 +38,11 @@ test("teacher marks attendance and closes month; accountant pays; parent sees ze
   await row.locator("a").click();
   await page.selectOption('select[name="kind"]', "FOOD");
   await page.fill('input[name="amount"]', due);
-  await page.click('button:has-text("Хадгалах")');
-  await expect(page.locator("text=Хоолны өр:")).toContainText("0 ₮");
+  await page.click('button:has-text("Төлбөр бүртгэх")');
+  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны өр/ })).toHaveText(/^Хоолны өр\s*0 ₮$/);
   await logout(page);
 
   await login(page, "parent@school.local");
   await expect(page).toHaveURL(/\/parent\/students\//);
-  await expect(page.locator("text=Хоолны өр:")).toContainText("0 ₮");
+  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны өр/ })).toHaveText(/^Хоолны өр\s*0 ₮$/);
 });

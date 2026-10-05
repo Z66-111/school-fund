@@ -14,7 +14,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const month = Number(sp.month ?? t.getUTCMonth() + 1);
   const [fund, food] = await Promise.all([classFundReport(actor, id), monthlyFoodReport(actor, id, year, month)]);
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-10">
       <FundReportView r={fund} classId={id} />
       <div>
         <MonthPicker year={year} month={month} />

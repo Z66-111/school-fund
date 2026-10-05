@@ -9,8 +9,11 @@ import { getMonthAttendance } from "@/services/attendance";
 import { holidayDates } from "@/services/holidays";
 import { listChildren } from "@/services/students";
 import { AttendanceGrid, type GridDay } from "@/components/AttendanceGrid";
+import { MonthNav } from "@/components/MonthNav";
 import { StudentBalancesView } from "@/components/StudentBalances";
 import { FundReportView } from "@/components/FundReport";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { buttonClass } from "@/components/ui/Button";
 import { monthDates, toISODate, todayDate, isFuture } from "@/lib/dates";
 import { isChargeable } from "@/lib/billing";
 import { mn } from "@/lib/i18n/mn";
@@ -45,23 +48,19 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const days: GridDay[] = monthDates(year, month).map((d) => ({ iso: toISODate(d), day: d.getUTCDate(), weekday: d.getUTCDay(), chargeable: isChargeable(d, holidays), future: isFuture(d) }));
   const initial: Record<string, "PRESENT" | "ABSENT" | null> = {};
   for (const r of rows) if (r.studentId === id) initial[`${id}|${toISODate(r.date)}`] = r.status as "PRESENT" | "ABSENT";
-  const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
-  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-semibold">{student.name} — {student.class.name}</h1>
-        {children.length > 1 && <Link href="/parent" className="text-sm underline">{mn.parent.selectChild}</Link>}
-      </div>
-      <section>
-        <div className="mb-1 flex items-center gap-3 text-sm">
-          <Link href={`?year=${prev.y}&month=${prev.m}`} className="underline">←</Link>
-          <span className="font-semibold">{mn.attendance.title}: {year} {mn.months[month - 1]}</span>
-          <Link href={`?year=${next.y}&month=${next.m}`} className="underline">→</Link>
+    <div className="flex flex-col gap-8">
+      <PageHeader title={student.name} subtitle={`${mn.common.class} ${student.class.name}`}>
+        {children.length > 1 && <Link href="/parent" className={buttonClass("secondary", "sm")}>{mn.parent.backToChildren}</Link>}
+      </PageHeader>
+      <StudentBalancesView b={b} payments={payments} />
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2>{mn.attendance.title}</h2>
+          <MonthNav year={year} month={month} />
         </div>
         <AttendanceGrid key={`${year}-${month}`} students={[{ id, name: student.name }]} days={days} initial={initial} readOnly />
       </section>
-      <StudentBalancesView b={b} payments={payments} />
       <FundReportView r={fund} classId={student.classId} />
     </div>
   );

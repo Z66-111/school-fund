@@ -4,6 +4,7 @@ import { listClasses } from "@/services/classes";
 import { monthlyFoodReport } from "@/services/reports";
 import { FoodReportView } from "@/components/FoodReport";
 import { MonthPicker } from "@/components/MonthPicker";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { todayDate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
@@ -17,14 +18,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const year = Number(sp.year ?? t.getUTCFullYear());
   const month = Number(sp.month ?? t.getUTCMonth() + 1);
   const picker = (
-    <select name="classId" defaultValue={classId} className="rounded border p-1">
+    <select name="classId" defaultValue={classId} className="input w-auto">
       {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
     </select>
   );
-  if (!classId) return <p>{mn.schoolYear.noActive}</p>;
+  if (!classId) return <p className="text-ink-muted">{mn.schoolYear.noActive}</p>;
   const r = await monthlyFoodReport(actor, classId, year, month);
   return (
     <div>
+      <PageHeader title={mn.nav.foodReport} subtitle={year0.name} />
       <MonthPicker year={year} month={month} extra={picker} />
       <FoodReportView r={r} classId={classId} />
     </div>

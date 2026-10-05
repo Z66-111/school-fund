@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import type { ActionResult } from "@/lib/action";
+import { buttonClass, type ButtonVariant, type ButtonSize } from "@/components/ui/Button";
 
 type Props = {
   action: (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
@@ -9,9 +10,11 @@ type Props = {
   className?: string;
   confirm?: string;
   labels?: Record<string, string>;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 };
 
-export function ActionForm({ action, submitLabel, children, className, confirm, labels }: Props) {
+export function ActionForm({ action, submitLabel, children, className, confirm, labels, variant = "primary", size = "md" }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
   const fieldMessages =
     state && !state.ok && state.fieldErrors
@@ -26,17 +29,17 @@ export function ActionForm({ action, submitLabel, children, className, confirm, 
   return (
     <form
       action={formAction}
-      className={className ?? "flex flex-col gap-2"}
+      className={className ?? "flex flex-col gap-3"}
       onSubmit={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
     >
       {children}
       {state && !state.ok && (
-        <div className="text-sm text-red-700">
+        <div className="rounded-sm border-l-2 border-absent bg-absent-soft px-3 py-2 text-sm text-absent" role="alert">
           <p>{state.error}</p>
           {fieldMessages.length > 0 && (
-            <ul>
+            <ul className="mt-1 list-disc pl-4">
               {fieldMessages.map((m) => (
                 <li key={m}>{m}</li>
               ))}
@@ -44,8 +47,10 @@ export function ActionForm({ action, submitLabel, children, className, confirm, 
           )}
         </div>
       )}
-      {state?.ok && state.message && <p className="text-sm text-green-700">{state.message}</p>}
-      <button disabled={pending} className="rounded bg-blue-700 px-3 py-1 text-white disabled:opacity-50">
+      {state?.ok && state.message && (
+        <p className="rounded-sm border-l-2 border-present bg-present-soft px-3 py-2 text-sm text-present" role="status">{state.message}</p>
+      )}
+      <button disabled={pending} className={`${buttonClass(variant, size)} self-start`}>
         {submitLabel}
       </button>
     </form>

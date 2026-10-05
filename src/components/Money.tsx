@@ -1,4 +1,4 @@
 import { formatMNT } from "@/lib/money";
-export function Money({ v }: { v: number }) {
-  return <span className={v < 0 ? "text-red-700" : ""}>{formatMNT(v)}</span>;
+export function Money({ v, className = "" }: { v: number; className?: string }) {
+  return <span className={`num ${v < 0 ? "text-absent" : ""} ${className}`}>{formatMNT(v)}</span>;
 }

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { requireClassPage } from "@/lib/page-auth";
 import { getClass } from "@/services/classes";
 import { mn } from "@/lib/i18n/mn";
+import { ClassTabs } from "@/components/ClassTabs";
 
 export default async function ClassLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,17 +9,18 @@ export default async function ClassLayout({ children, params }: { children: Reac
   const c = await getClass(id);
   const base = `/teacher/class/${id}`;
   const tabs = [
-    [`${base}/attendance`, mn.nav.attendance],
-    [`${base}/students`, mn.nav.students],
-    [`${base}/expenses`, mn.nav.expenses],
-    [`${base}/report`, mn.nav.report],
+    { href: `${base}/attendance`, label: mn.nav.attendance },
+    { href: `${base}/students`, label: mn.nav.students },
+    { href: `${base}/expenses`, label: mn.nav.expenses },
+    { href: `${base}/report`, label: mn.nav.report },
   ];
   return (
     <div>
-      <h1 className="mb-2 text-xl font-semibold">{c.name} — {c.schoolYear.name}</h1>
-      <div className="mb-4 flex gap-4 border-b text-sm">
-        {tabs.map(([href, label]) => <Link key={href} href={href} className="pb-1 hover:underline">{label}</Link>)}
-      </div>
+      <header className="mb-4 flex flex-wrap items-baseline gap-x-3">
+        <h1>{mn.common.class} {c.name}</h1>
+        <span className="text-sm text-ink-muted">{c.schoolYear.name}</span>
+      </header>
+      <ClassTabs tabs={tabs} />
       {children}
     </div>
   );

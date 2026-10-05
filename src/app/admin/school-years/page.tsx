@@ -2,6 +2,11 @@ import { requirePage } from "@/lib/page-auth";
 import { listSchoolYears } from "@/services/school-years";
 import { createSchoolYearAction, activateSchoolYearAction } from "@/actions/school-years";
 import { ActionForm } from "@/components/ActionForm";
+import { Table } from "@/components/ui/Table";
+import { Card } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
+import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
@@ -9,38 +14,40 @@ export default async function Page() {
   await requirePage("ADMIN");
   const years = await listSchoolYears();
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <section>
-        <h1 className="mb-2 text-xl font-semibold">{mn.schoolYear.title}</h1>
-        <table className="w-full border bg-white text-sm">
-          <thead><tr><th className="p-2 text-left">{mn.common.name}</th><th>{mn.schoolYear.startDate}</th><th>{mn.schoolYear.endDate}</th><th>{mn.common.status}</th><th /></tr></thead>
-          <tbody>
-            {years.map((y) => (
-              <tr key={y.id} className="border-t">
-                <td className="p-2">{y.name}</td>
-                <td className="text-center">{toISODate(y.startDate)}</td>
-                <td className="text-center">{toISODate(y.endDate)}</td>
-                <td className="text-center">{y.isActive ? mn.common.active : mn.common.inactive}</td>
-                <td className="p-1">
-                  {!y.isActive && (
-                    <ActionForm action={activateSchoolYearAction} submitLabel={mn.common.activate} className="inline">
-                      <input type="hidden" name="id" value={y.id} />
-                    </ActionForm>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-      <section className="rounded border bg-white p-4">
-        <h2 className="mb-2 font-semibold">{mn.schoolYear.create}</h2>
-        <ActionForm action={createSchoolYearAction} submitLabel={mn.common.add}>
-          <label className="text-sm">{mn.common.name}<input name="name" required className="w-full rounded border p-1" placeholder="2026-2027" /></label>
-          <label className="text-sm">{mn.schoolYear.startDate}<input name="startDate" type="date" required className="w-full rounded border p-1" /></label>
-          <label className="text-sm">{mn.schoolYear.endDate}<input name="endDate" type="date" required className="w-full rounded border p-1" /></label>
-        </ActionForm>
-      </section>
+    <div>
+      <PageHeader title={mn.schoolYear.title} />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Table>
+            <thead><tr><th>{mn.common.name}</th><th>{mn.schoolYear.startDate}</th><th>{mn.schoolYear.endDate}</th><th>{mn.common.status}</th><th /></tr></thead>
+            <tbody>
+              {years.map((y) => (
+                <tr key={y.id}>
+                  <td className="font-medium">{y.name}</td>
+                  <td className="num">{toISODate(y.startDate)}</td>
+                  <td className="num">{toISODate(y.endDate)}</td>
+                  <td>{y.isActive ? <Badge tone="good">{mn.common.active}</Badge> : <Badge>{mn.common.inactive}</Badge>}</td>
+                  <td className="text-right">
+                    {!y.isActive && (
+                      <ActionForm action={activateSchoolYearAction} submitLabel={mn.common.activate} className="inline-flex" variant="secondary" size="sm">
+                        <input type="hidden" name="id" value={y.id} />
+                      </ActionForm>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {years.length === 0 && <tr><td colSpan={5} className="text-ink-muted">{mn.common.empty}</td></tr>}
+            </tbody>
+          </Table>
+        </div>
+        <Card title={mn.schoolYear.create}>
+          <ActionForm action={createSchoolYearAction} submitLabel={mn.common.add}>
+            <Field label={mn.common.name}><input name="name" required className="input" placeholder="2026-2027" /></Field>
+            <Field label={mn.schoolYear.startDate}><input name="startDate" type="date" required className="input" /></Field>
+            <Field label={mn.schoolYear.endDate}><input name="endDate" type="date" required className="input" /></Field>
+          </ActionForm>
+        </Card>
+      </div>
     </div>
   );
 }

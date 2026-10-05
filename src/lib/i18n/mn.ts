@@ -17,7 +17,7 @@ export const mn = {
     myChildren: "Миний хүүхдүүд",
   },
   roles: { ADMIN: "Админ", TEACHER: "Багш", ACCOUNTANT: "Нягтлан", PARENT: "Эцэг эх" },
-  login: { title: "Нэвтрэх", email: "И-мэйл", password: "Нууц үг", submit: "Нэвтрэх" },
+  login: { title: "Нэвтрэх", email: "И-мэйл", password: "Нууц үг", submit: "Нэвтрэх", tagline: "Ирц, хоолны мөнгө, ангийн сангийн бүртгэл" },
   common: {
     apply: "Харуулах",
     name: "Нэр",
@@ -51,6 +51,8 @@ export const mn = {
     status: "Төлөв",
     yes: "Тийм",
     no: "Үгүй",
+    empty: "Бүртгэл байхгүй",
+    backHome: "Нүүр хуудас",
   },
   schoolYear: {
     title: "Хичээлийн жил",
@@ -99,6 +101,11 @@ export const mn = {
     closed: "Хаагдсан",
     closedAt: "Хаасан",
     confirmClose: "Энэ сарыг хаахдаа итгэлтэй байна уу? Сурагч бүрт хоолны нэхэмжлэх үүснэ.",
+    legend: "Тэмдэглэгээ",
+    nonChargeable: "Амралт, баяр",
+    prevMonth: "Өмнөх сар",
+    nextMonth: "Дараах сар",
+    clickToMark: "Нүдэн дээр дарж ирцийг тэмдэглэнэ",
   },
   invoice: {
     title: "Хоолны нэхэмжлэх",
@@ -132,7 +139,7 @@ export const mn = {
     due: "Төлөх",
     food: "Сарын хоолны тайлан",
   },
-  parent: { selectChild: "Хүүхэд сонгох", noChildren: "Холбогдсон хүүхэд байхгүй" },
+  parent: { selectChild: "Хүүхэд сонгох", noChildren: "Холбогдсон хүүхэд байхгүй", dueNow: "Одоо төлөх дүн", backToChildren: "Бүх хүүхэд" },
   months: ["1-р сар", "2-р сар", "3-р сар", "4-р сар", "5-р сар", "6-р сар", "7-р сар", "8-р сар", "9-р сар", "10-р сар", "11-р сар", "12-р сар"],
   weekdaysShort: ["Ня", "Да", "Мя", "Лх", "Пү", "Ба", "Бя"],
   errors: {

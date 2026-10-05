@@ -3,6 +3,9 @@ import { listExpenses } from "@/services/expenses";
 import { addExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
 import { ActionForm } from "@/components/ActionForm";
 import { Money } from "@/components/Money";
+import { Table } from "@/components/ui/Table";
+import { Card } from "@/components/ui/Card";
+import { Field } from "@/components/ui/Field";
 import { toISODate, todayDate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
@@ -13,50 +16,54 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const expenses = await listExpenses(actor, id);
   const total = expenses.reduce((a, e) => a + e.amount, 0);
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      <section className={isTeacher ? "md:col-span-2" : "md:col-span-3"}>
-        <table className="w-full border bg-white text-sm">
-          <thead><tr><th className="p-2 text-left">{mn.common.date}</th><th className="text-left">{mn.expense.itemTitle}</th><th>{mn.common.amount}</th><th className="text-left">{mn.common.note}</th>{isTeacher && <th>{mn.common.actions}</th>}</tr></thead>
+    <div className="grid gap-6 lg:grid-cols-3">
+      <section className={isTeacher ? "lg:col-span-2" : "lg:col-span-3"}>
+        <Table>
+          <thead><tr><th>{mn.common.date}</th><th>{mn.expense.itemTitle}</th><th className="num">{mn.common.amount}</th><th>{mn.common.note}</th>{isTeacher && <th />}</tr></thead>
           <tbody>
             {expenses.map((e) => (
-              <tr key={e.id} className="border-t align-top">
-                <td className="p-2">{toISODate(e.date)}</td>
-                <td className="p-2">{e.title}</td>
-                <td className="p-2 text-right"><Money v={e.amount} /></td>
-                <td className="p-2">{e.note}</td>
-                {isTeacher && <td className="p-2">
-                  <details>
-                    <summary className="cursor-pointer text-blue-700">{mn.common.edit}</summary>
-                    <ActionForm action={updateExpenseAction} submitLabel={mn.common.save}>
+              <tr key={e.id}>
+                <td className="num">{toISODate(e.date)}</td>
+                <td className="font-medium">{e.title}</td>
+                <td className="num"><Money v={e.amount} /></td>
+                <td className="text-ink-muted">{e.note}</td>
+                {isTeacher && (
+                  <td className="text-right">
+                    <details className="text-left">
+                      <summary className="text-xs">{mn.common.edit}</summary>
+                      <ActionForm action={updateExpenseAction} submitLabel={mn.common.save} className="mt-2 flex flex-col gap-2" size="sm">
+                        <input type="hidden" name="classId" value={id} />
+                        <input type="hidden" name="expenseId" value={e.id} />
+                        <input name="date" type="date" defaultValue={toISODate(e.date)} className="input" />
+                        <input name="title" defaultValue={e.title} className="input" />
+                        <input name="amount" type="number" min={1} step={1} defaultValue={e.amount} className="input" />
+                        <input name="note" defaultValue={e.note} className="input" />
+                      </ActionForm>
+                    </details>
+                    <ActionForm action={deleteExpenseAction} submitLabel={mn.common.delete} className="mt-1 inline-flex" variant="danger" size="sm">
                       <input type="hidden" name="classId" value={id} />
                       <input type="hidden" name="expenseId" value={e.id} />
-                      <input name="date" type="date" defaultValue={toISODate(e.date)} className="rounded border p-1" />
-                      <input name="title" defaultValue={e.title} className="rounded border p-1" />
-                      <input name="amount" type="number" min={1} step={1} defaultValue={e.amount} className="rounded border p-1" />
-                      <input name="note" defaultValue={e.note} className="rounded border p-1" />
                     </ActionForm>
-                  </details>
-                  <ActionForm action={deleteExpenseAction} submitLabel={mn.common.delete} className="inline">
-                    <input type="hidden" name="classId" value={id} />
-                    <input type="hidden" name="expenseId" value={e.id} />
-                  </ActionForm>
-                </td>}
+                  </td>
+                )}
               </tr>
             ))}
+            {expenses.length === 0 && <tr><td colSpan={isTeacher ? 5 : 4} className="text-ink-muted">{mn.common.empty}</td></tr>}
           </tbody>
-          <tfoot><tr className="border-t font-semibold"><td className="p-2" colSpan={2}>{mn.common.total}</td><td className="p-2 text-right"><Money v={total} /></td><td colSpan={isTeacher ? 2 : 1} /></tr></tfoot>
-        </table>
+          <tfoot><tr><td colSpan={2}>{mn.common.total}</td><td className="num"><Money v={total} /></td><td colSpan={isTeacher ? 2 : 1} /></tr></tfoot>
+        </Table>
       </section>
-      {isTeacher && <section className="rounded border bg-white p-4">
-        <h2 className="mb-2 font-semibold">{mn.expense.add}</h2>
-        <ActionForm action={addExpenseAction} submitLabel={mn.common.add}>
-          <input type="hidden" name="classId" value={id} />
-          <input name="date" type="date" required defaultValue={toISODate(todayDate())} className="rounded border p-1" />
-          <input name="title" required placeholder={mn.expense.itemTitle} className="rounded border p-1" />
-          <input name="amount" type="number" min={1} step={1} required placeholder={mn.common.amount} className="rounded border p-1" />
-          <input name="note" placeholder={mn.common.note} className="rounded border p-1" />
-        </ActionForm>
-      </section>}
+      {isTeacher && (
+        <Card title={mn.expense.add}>
+          <ActionForm action={addExpenseAction} submitLabel={mn.common.add}>
+            <input type="hidden" name="classId" value={id} />
+            <Field label={mn.common.date}><input name="date" type="date" required defaultValue={toISODate(todayDate())} className="input" /></Field>
+            <Field label={mn.expense.itemTitle}><input name="title" required className="input" /></Field>
+            <Field label={mn.common.amount}><input name="amount" type="number" min={1} step={1} required className="input" /></Field>
+            <Field label={mn.common.note}><input name="note" className="input" /></Field>
+          </ActionForm>
+        </Card>
+      )}
     </div>
   );
 }

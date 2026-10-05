@@ -3,6 +3,9 @@ import { listAllPayments } from "@/services/payments";
 import { deletePaymentAction } from "@/actions/payments";
 import { ActionForm } from "@/components/ActionForm";
 import { Money } from "@/components/Money";
+import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
 
@@ -11,33 +14,34 @@ export default async function Page() {
   const payments = await listAllPayments(actor);
   return (
     <div>
-      <h1 className="mb-2 text-xl font-semibold">{mn.nav.payments}</h1>
-      <table className="w-full border bg-white text-sm">
-        <thead><tr><th className="p-2 text-left">{mn.payment.paidAt}</th><th>{mn.common.class}</th><th>{mn.common.student}</th><th>{mn.payment.kind}</th><th>{mn.common.amount}</th><th>{mn.common.note}</th><th>{mn.payment.registeredBy}</th><th>{mn.common.actions}</th></tr></thead>
+      <PageHeader title={mn.nav.payments} />
+      <Table>
+        <thead><tr><th>{mn.payment.paidAt}</th><th>{mn.common.class}</th><th>{mn.common.student}</th><th>{mn.payment.kind}</th><th className="num">{mn.common.amount}</th><th>{mn.common.note}</th><th>{mn.payment.registeredBy}</th><th /></tr></thead>
         <tbody>
           {payments.map((p) => (
-            <tr key={p.id} className={`border-t ${p.deletedAt ? "text-gray-400 line-through" : ""}`}>
-              <td className="p-2">{toISODate(p.paidAt)}</td>
+            <tr key={p.id} className={p.deletedAt ? "muted" : ""}>
+              <td className="num">{toISODate(p.paidAt)}</td>
               <td>{p.student.class.name}</td>
-              <td>{p.student.name}</td>
+              <td className="font-medium">{p.student.name}</td>
               <td>{mn.payment[p.kind as "FOOD" | "ANNUAL_FUND"]}</td>
-              <td className="text-right"><Money v={p.amount} /></td>
-              <td>{p.note}</td>
-              <td>{p.registeredBy.name}</td>
-              <td className="p-1">
+              <td className="num"><Money v={p.amount} className={p.deletedAt ? "line-through" : ""} /></td>
+              <td className="text-ink-muted">{p.note}</td>
+              <td className="text-ink-muted">{p.registeredBy.name}</td>
+              <td className="text-right">
                 {p.deletedAt ? (
-                  <span className="no-underline">{mn.payment.deleted}: {p.deleteReason}</span>
+                  <span className="inline-flex items-center gap-2"><Badge tone="bad">{mn.payment.deleted}</Badge><span className="text-xs">{p.deleteReason}</span></span>
                 ) : p.registeredById === actor.userId ? (
-                  <ActionForm action={deletePaymentAction} submitLabel={mn.common.delete} className="flex gap-1">
+                  <ActionForm action={deletePaymentAction} submitLabel={mn.common.delete} className="inline-flex items-center gap-2" variant="danger" size="sm">
                     <input type="hidden" name="paymentId" value={p.id} />
-                    <input name="reason" required placeholder={mn.common.reason} className="w-32 rounded border p-1" />
+                    <input name="reason" required placeholder={mn.common.reason} className="input w-36" />
                   </ActionForm>
                 ) : null}
               </td>
             </tr>
           ))}
+          {payments.length === 0 && <tr><td colSpan={8} className="text-ink-muted">{mn.common.empty}</td></tr>}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

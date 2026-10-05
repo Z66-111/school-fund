@@ -1,1 +1,156 @@
 @import "tailwindcss";
+
+/* Ledger paper, teal ink. Light values first; dark overrides below. */
+:root {
+  --paper: #f2f4f0;
+  --surface: #ffffff;
+  --surface-2: #e9ede8;
+  --ink: #1b2320;
+  --ink-muted: #5b665f;
+  --rule: #d6dcd6;
+  --rule-strong: #b9c2ba;
+  --teal: #0d6a6a;
+  --teal-deep: #084f4f;
+  --teal-soft: #dcecea;
+  --present: #2e7d4f;
+  --present-soft: #dff0e3;
+  --absent: #b0433b;
+  --absent-soft: #f7dedb;
+  --due: #9b5a12;
+  --due-soft: #f8e9d2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121716;
+    --surface: #1a211f;
+    --surface-2: #222b28;
+    --ink: #e6ebe7;
+    --ink-muted: #9aa59f;
+    --rule: #2c3532;
+    --rule-strong: #3e4a46;
+    --teal: #63b5b0;
+    --teal-deep: #8fd0cb;
+    --teal-soft: #173737;
+    --present: #7fcf9c;
+    --present-soft: #1d3a29;
+    --absent: #f09a93;
+    --absent-soft: #4a2320;
+    --due: #e5b068;
+    --due-soft: #46351a;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
+  --color-teal-soft: var(--teal-soft);
+  --color-present: var(--present);
+  --color-present-soft: var(--present-soft);
+  --color-absent: var(--absent);
+  --color-absent-soft: var(--absent-soft);
+  --color-due: var(--due);
+  --color-due-soft: var(--due-soft);
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+@layer base {
+  html { color-scheme: light dark; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* The ledger margin line: one teal rule across the top of every page. */
+  body::before {
+    content: "";
+    display: block;
+    height: 2px;
+    background: var(--teal);
+  }
+  h1 { font-size: 1.625rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em; }
+  h2 { font-size: 1.125rem; line-height: 1.3; font-weight: 600; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+}
+
+@layer components {
+  /* Data lives on ruled lines, not in boxes. */
+  .ledger {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background: var(--surface);
+  }
+  .ledger th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--ink-muted);
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  .ledger td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .ledger tfoot td {
+    font-weight: 600;
+    border-bottom: 0;
+    border-top: 2px solid var(--rule-strong);
+  }
+  .ledger .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ledger .ctr { text-align: center; }
+  .ledger tr.due > td { background: color-mix(in srgb, var(--due-soft) 45%, var(--surface)); }
+  .ledger tr.muted > td { color: var(--ink-muted); }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  .input {
+    width: 100%;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+  .input:focus { outline: 2px solid var(--teal); outline-offset: 1px; border-color: var(--teal); }
+  .input::placeholder { color: var(--ink-muted); }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.125rem;
+  }
+
+  .link {
+    color: var(--teal);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--teal) 40%, transparent);
+    text-underline-offset: 3px;
+  }
+  .link:hover { text-decoration-color: var(--teal); }
+
+  details > summary { cursor: pointer; color: var(--teal); list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "+ "; color: var(--ink-muted); }
+  details[open] > summary::before { content: "− "; }
+}
