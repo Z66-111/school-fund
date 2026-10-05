@@ -43,6 +43,12 @@ describe("studentBalances", () => {
     const b = await studentBalances(actor, s.id);
     expect(b).toMatchObject({ foodOutstanding: 0, foodCredit: 5000 });
   });
+  it("inactive student owes no annual fund", async () => {
+    const { c, actor } = await setup();
+    const gone = await f.student(c.id, { isActive: false });
+    const b = await studentBalances(actor, gone.id);
+    expect(b).toMatchObject({ fundPaid: 0, fundDue: 0, annualFundAmount: 50000 });
+  });
   it("parent can read own child's balances, not another's", async () => {
     const { s, c } = await setup();
     const p = await f.user("PARENT");
@@ -87,5 +93,40 @@ describe("outstandingTable", () => {
     expect(byId[inactiveOwing.id]).toMatchObject({ foodDue: 3000, fundDue: 0, isActive: false });
     expect(rows).toHaveLength(4);
     expect((await outstandingTable(actor, otherClass.id))).toHaveLength(1);
+  });
+  it("keeps prior-year students who still owe; drops prior-year students who owe nothing", async () => {
+    const { actor, t } = await setup();
+    const oldYear = await f.schoolYear({ isActive: false, name: "2025-2026" });
+    const oldClass = await f.klass({ schoolYearId: oldYear.id, name: "0А", annualFundAmount: 40000 });
+    const owing = await f.student(oldClass.id, { name: "Өртэй" });
+    const settled = await f.student(oldClass.id, { name: "Төлсөн" });
+    const oldClose = await prisma.monthClose.create({ data: { classId: oldClass.id, year: 2026, month: 5, closedById: t.id } });
+    await prisma.foodInvoice.create({ data: { studentId: owing.id, monthCloseId: oldClose.id, year: 2026, month: 5, daysPresent: 2, rate: 3000, amount: 6000 } });
+    await registerPayment(actor, { studentId: owing.id, kind: "ANNUAL_FUND", amount: "40000", paidAt: "2026-10-01" }, NOW);
+    await registerPayment(actor, { studentId: settled.id, kind: "ANNUAL_FUND", amount: "40000", paidAt: "2026-10-01" }, NOW);
+
+    const rows = await outstandingTable(actor);
+    const byId = Object.fromEntries(rows.map((r) => [r.studentId, r]));
+    expect(byId[owing.id]).toMatchObject({ foodDue: 6000, fundDue: 0, isActiveYear: false, schoolYearName: "2025-2026", className: "0А" });
+    expect(byId[settled.id]).toBeUndefined();
+    expect(await outstandingTable(actor, oldClass.id)).toHaveLength(1);
+  });
+
+  it("works without an active school year", async () => {
+    const { y, s, actor } = await setup();
+    await prisma.schoolYear.update({ where: { id: y.id }, data: { isActive: false } });
+    const rows = await outstandingTable(actor);
+    expect(rows.map((r) => r.studentId)).toEqual([s.id]);
+    expect(rows[0]).toMatchObject({ isActiveYear: false, foodDue: 45000, fundDue: 50000 });
+  });
+
+  it("soft-deleted payments no longer reduce dues", async () => {
+    const { s, actor } = await setup();
+    const food = await registerPayment(actor, { studentId: s.id, kind: "FOOD", amount: "45000", paidAt: "2026-10-01" }, NOW);
+    const fund = await registerPayment(actor, { studentId: s.id, kind: "ANNUAL_FUND", amount: "50000", paidAt: "2026-10-01" }, NOW);
+    expect((await outstandingTable(actor)).find((r) => r.studentId === s.id)).toMatchObject({ foodDue: 0, fundDue: 0 });
+    await deletePayment(actor, { paymentId: food.id, reason: "Алдаа" });
+    await deletePayment(actor, { paymentId: fund.id, reason: "Алдаа" });
+    expect((await outstandingTable(actor)).find((r) => r.studentId === s.id)).toMatchObject({ foodDue: 45000, fundDue: 50000 });
   });
 });

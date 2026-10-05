@@ -5,7 +5,7 @@ import { parse } from "@/lib/validate";
 import { moneySchema } from "@/lib/money";
 import { parseDateOnly, isFuture } from "@/lib/dates";
 import { allocateFoodPayments, foodOutstanding, foodCredit } from "@/lib/billing";
-import { dateStringSchema, getActiveSchoolYear } from "@/services/school-years";
+import { dateStringSchema } from "@/services/school-years";
 import { AppError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import { PAYMENT_KINDS, type Actor } from "@/lib/roles";
@@ -84,7 +84,7 @@ export async function studentBalances(actor: Actor, studentId: string): Promise<
   return {
     annualFundAmount: student.class.annualFundAmount,
     fundPaid,
-    fundDue: Math.max(0, student.class.annualFundAmount - fundPaid),
+    fundDue: student.isActive ? Math.max(0, student.class.annualFundAmount - fundPaid) : 0,
     invoices: allocateFoodPayments(invoices, foodPaid),
     foodInvoiced,
     foodPaid,
@@ -98,6 +98,8 @@ export type OutstandingRow = {
   studentName: string;
   classId: string;
   className: string;
+  schoolYearName: string;
+  isActiveYear: boolean;
   isActive: boolean;
   foodDue: number;
   fundDue: number;
@@ -105,11 +107,12 @@ export type OutstandingRow = {
 
 export async function outstandingTable(actor: Actor, classId?: string): Promise<OutstandingRow[]> {
   requireRole(actor, "ACCOUNTANT", "ADMIN");
-  const year = await getActiveSchoolYear();
   const students = await prisma.student.findMany({
-    where: { class: { schoolYearId: year.id, ...(classId ? { id: classId } : {}) } },
-    include: { class: { select: { id: true, name: true, annualFundAmount: true } } },
-    orderBy: [{ class: { name: "asc" } }, { name: "asc" }],
+    where: classId ? { classId } : {},
+    include: {
+      class: { select: { id: true, name: true, annualFundAmount: true, schoolYear: { select: { name: true, isActive: true } } } },
+    },
+    orderBy: [{ class: { schoolYear: { startDate: "desc" } } }, { class: { name: "asc" } }, { name: "asc" }],
   });
   const ids = students.map((s) => s.id);
   const [inv, pay] = await Promise.all([
@@ -122,8 +125,19 @@ export async function outstandingTable(actor: Actor, classId?: string): Promise<
   for (const s of students) {
     const foodDue = foodOutstanding(invoiced.get(s.id) ?? 0, paid.get(`${s.id}|FOOD`) ?? 0);
     const fundDue = s.isActive ? Math.max(0, s.class.annualFundAmount - (paid.get(`${s.id}|ANNUAL_FUND`) ?? 0)) : 0;
-    if (!s.isActive && foodDue === 0) continue;
-    rows.push({ studentId: s.id, studentName: s.name, classId: s.class.id, className: s.class.name, isActive: s.isActive, foodDue, fundDue });
+    const isActiveYear = s.class.schoolYear.isActive;
+    if (!((s.isActive && isActiveYear) || foodDue > 0 || (s.isActive && fundDue > 0))) continue;
+    rows.push({
+      studentId: s.id,
+      studentName: s.name,
+      classId: s.class.id,
+      className: s.class.name,
+      schoolYearName: s.class.schoolYear.name,
+      isActiveYear,
+      isActive: s.isActive,
+      foodDue,
+      fundDue,
+    });
   }
   return rows;
 }

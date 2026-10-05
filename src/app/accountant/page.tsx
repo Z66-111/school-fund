@@ -26,7 +26,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         <tbody>
           {rows.map((r) => (
             <tr key={r.studentId} className="border-t">
-              <td className="p-2">{r.className}</td>
+              <td className="p-2">{r.className}{!r.isActiveYear && ` (${r.schoolYearName})`}</td>
               <td><Link href={`/accountant/students/${r.studentId}`} className="underline">{r.studentName}</Link>{!r.isActive && ` (${mn.common.inactive})`}</td>
               <td className="text-right"><Money v={r.foodDue} /></td>
               <td className="text-right"><Money v={r.fundDue} /></td>

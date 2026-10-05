@@ -6,14 +6,17 @@ import { outstandingTable } from "@/services/payments";
 import { Money } from "@/components/Money";
 import { mn } from "@/lib/i18n/mn";
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
   const actor = await requirePage("ADMIN");
+  const sp = await searchParams;
   const years = await listSchoolYears();
-  const active = years.find((y) => y.isActive);
-  if (!active) return <p>{mn.schoolYear.noActive} — <Link href="/admin/school-years" className="underline">{mn.schoolYear.create}</Link></p>;
-  const [classes, rows] = await Promise.all([listClasses(active.id), outstandingTable(actor)]);
+  const selected = years.find((y) => y.id === sp.year) ?? years.find((y) => y.isActive);
+  if (!selected) return <p>{mn.schoolYear.noActive} — <Link href="/admin/school-years" className="underline">{mn.schoolYear.create}</Link></p>;
+  const [classes, rows] = await Promise.all([listClasses(selected.id), outstandingTable(actor)]);
+  const classIds = new Set(classes.map((c) => c.id));
   const byClass = new Map<string, { food: number; fund: number }>();
   for (const r of rows) {
+    if (!classIds.has(r.classId)) continue;
     const t = byClass.get(r.classId) ?? { food: 0, fund: 0 };
     t.food += r.foodDue;
     t.fund += r.fundDue;
@@ -21,7 +24,12 @@ export default async function AdminHome() {
   }
   return (
     <div>
-      <h1 className="mb-2 text-xl font-semibold">{active.name}</h1>
+      <h1 className="mb-2 text-xl font-semibold">{selected.name}</h1>
+      <form className="mb-2 text-sm">
+        <select name="year" defaultValue={selected.id} className="rounded border p-1">
+          {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+        </select>{" "}<button className="underline">{mn.common.apply}</button>
+      </form>
       <table className="w-full border bg-white text-sm">
         <thead><tr><th className="p-2 text-left">{mn.common.class}</th><th>{mn.common.teacher}</th><th>{mn.nav.students}</th><th>{mn.class.foodOutstanding}</th><th>{mn.class.fundOutstanding}</th><th /><th /></tr></thead>
         <tbody>
