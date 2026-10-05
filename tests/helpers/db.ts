@@ -5,6 +5,8 @@ import type { Actor, Role } from "@/lib/roles";
 
 export async function resetDb() {
   await prisma.$transaction([
+    prisma.lessonSlot.deleteMany(),
+    prisma.periodTime.deleteMany(),
     prisma.expense.deleteMany(),
     prisma.payment.deleteMany(),
     prisma.foodInvoice.deleteMany(),

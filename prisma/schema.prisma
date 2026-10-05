@@ -65,6 +65,8 @@ model Class {
   students    Student[]
   monthCloses MonthClose[]
   expenses    Expense[]
+  lessonSlots LessonSlot[]
+  periodTimes PeriodTime[]
 
   @@unique([schoolYearId, name])
 }
@@ -160,4 +162,27 @@ model Expense {
   createdById  String
   createdBy    User       @relation(fields: [createdById], references: [id])
   createdAt    DateTime   @default(now())
+}
+
+model LessonSlot {
+  id      String @id @default(cuid())
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  weekday Int
+  period  Int
+  subject String
+  note    String @default("")
+
+  @@unique([classId, weekday, period])
+}
+
+model PeriodTime {
+  id        String  @id @default(cuid())
+  classId   String
+  class     Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  period    Int
+  startTime String?
+  endTime   String?
+
+  @@unique([classId, period])
 }
