@@ -9,7 +9,7 @@ describe("classes", () => {
     const c = await createClass(actorOf(admin), { name: "1А", schoolYearId: y.id, dailyFoodRate: "3000", annualFundAmount: "50000" });
     expect(c.dailyFoodRate).toBe(3000);
     await expect(createClass(actorOf(admin), { name: "1Б", schoolYearId: y.id, dailyFoodRate: "3.5", annualFundAmount: "1" })).rejects.toMatchObject({ code: "VALIDATION" });
-    await expect(createClass(actorOf(admin), { name: "1А", schoolYearId: y.id, dailyFoodRate: "1", annualFundAmount: "1" })).rejects.toThrow(); // unique
+    await expect(createClass(actorOf(admin), { name: "1А", schoolYearId: y.id, dailyFoodRate: "1", annualFundAmount: "1" })).rejects.toMatchObject({ code: "VALIDATION" }); // unique
   });
   it("assigns only teachers; teacher role forbidden to assign", async () => {
     const admin = await f.user("ADMIN");

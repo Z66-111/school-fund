@@ -8,11 +8,11 @@ import { normalizeEmail } from "@/services/auth";
 import { ROLES, type Actor, type Role } from "@/lib/roles";
 import { mn } from "@/lib/i18n/mn";
 
-export const passwordSchema = z.string().min(6);
+export const passwordSchema = z.string().min(6, mn.errors.passwordShort);
 
 const userSchema = z.object({
   name: z.string().trim().min(1, mn.errors.required),
-  email: z.string().trim().toLowerCase().email(),
+  email: z.string().trim().toLowerCase().email(mn.errors.invalidEmail),
   password: passwordSchema,
   role: z.enum(ROLES),
 });

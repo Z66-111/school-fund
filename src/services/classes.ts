@@ -16,6 +16,9 @@ const classSchema = ratesSchema.extend({
 export async function createClass(actor: Actor, input: unknown) {
   requireRole(actor, "ADMIN");
   const v = parse(classSchema, input);
+  if (await prisma.class.findUnique({ where: { schoolYearId_name: { schoolYearId: v.schoolYearId, name: v.name } } })) {
+    throw new ValidationError({ name: [mn.errors.classNameTaken] });
+  }
   return prisma.class.create({ data: v });
 }
 
