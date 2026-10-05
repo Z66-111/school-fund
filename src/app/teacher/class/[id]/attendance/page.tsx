@@ -4,9 +4,10 @@ import { listStudents } from "@/services/students";
 import { getMonthAttendance, isMonthClosed } from "@/services/attendance";
 import { holidayDates } from "@/services/holidays";
 import { markAllPresentAction } from "@/actions/attendance";
+import { closeMonthAction } from "@/actions/month-close";
 import { ActionForm } from "@/components/ActionForm";
 import { AttendanceGrid, type GridDay } from "@/components/AttendanceGrid";
-import { monthDates, toISODate, todayDate, isFuture } from "@/lib/dates";
+import { monthDates, toISODate, todayDate, isFuture, isFutureMonth } from "@/lib/dates";
 import { isChargeable } from "@/lib/billing";
 import { mn } from "@/lib/i18n/mn";
 
@@ -44,6 +45,13 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <ActionForm action={markAllPresentAction} submitLabel={mn.attendance.markAllPresentToday} className="inline">
             <input type="hidden" name="classId" value={id} />
             <input type="hidden" name="date" value={todayIso} />
+          </ActionForm>
+        )}
+        {!closed && !isFutureMonth(year, month) && (
+          <ActionForm action={closeMonthAction} submitLabel={mn.attendance.closeMonth} className="inline" confirm={mn.attendance.confirmClose}>
+            <input type="hidden" name="classId" value={id} />
+            <input type="hidden" name="year" value={year} />
+            <input type="hidden" name="month" value={month} />
           </ActionForm>
         )}
       </div>
