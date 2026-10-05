@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireRole, assertClassAccess } from "@/lib/authz";
-import { ValidationError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import type { Actor } from "@/lib/roles";
 
@@ -16,7 +16,12 @@ export type Schedule = {
 export const slotKey = (weekday: number, period: number) => `${weekday}-${period}`;
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-const timeSchema = z.string().trim().refine((v) => v === "" || TIME.test(v), { message: mn.errors.invalidTime });
+/** Accepts "H:MM" as well as "HH:MM"; stores zero-padded. */
+const timeSchema = z
+  .string()
+  .trim()
+  .transform((v) => (/^\d:\d\d$/.test(v) ? `0${v}` : v))
+  .refine((v) => v === "" || TIME.test(v), { message: mn.errors.invalidTime });
 const textSchema = (max: number) => z.string().trim().max(max, mn.errors.validation);
 
 export async function getSchedule(actor: Actor, classId: string): Promise<Schedule> {
@@ -38,6 +43,7 @@ export async function getSchedule(actor: Actor, classId: string): Promise<Schedu
 /** Replace-all save of a class timetable from the flat form object. */
 export async function saveSchedule(actor: Actor, classId: string, input: Record<string, string>): Promise<void> {
   requireRole(actor, "TEACHER", "ADMIN");
+  if (!classId) throw new NotFoundError(); // never let an empty id reach the replace-all deleteMany
   await assertClassAccess(actor, classId);
 
   const fieldErrors: Record<string, string[]> = {};

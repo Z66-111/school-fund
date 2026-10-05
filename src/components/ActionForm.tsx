@@ -1,5 +1,5 @@
 "use client";
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import type { ActionResult } from "@/lib/action";
 import { buttonClass, type ButtonVariant, type ButtonSize } from "@/components/ui/Button";
 
@@ -12,9 +12,11 @@ type Props = {
   labels?: Record<string, string>;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Submit manually so React does not reset the inputs after the action; use for large forms whose values must survive a validation error. */
+  preserve?: boolean;
 };
 
-export function ActionForm({ action, submitLabel, children, className, confirm, labels, variant = "primary", size = "md" }: Props) {
+export function ActionForm({ action, submitLabel, children, className, confirm, labels, variant = "primary", size = "md", preserve = false }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
   const fieldMessages =
     state && !state.ok && state.fieldErrors
@@ -31,7 +33,15 @@ export function ActionForm({ action, submitLabel, children, className, confirm, 
       action={formAction}
       className={className ?? "flex flex-col gap-3"}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        if (confirm && !window.confirm(confirm)) {
+          e.preventDefault();
+          return;
+        }
+        if (preserve) {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          startTransition(() => formAction(fd));
+        }
       }}
     >
       {children}

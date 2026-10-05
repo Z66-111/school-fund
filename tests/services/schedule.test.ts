@@ -36,9 +36,22 @@ describe("saveSchedule", () => {
   });
   it("rejects bad time format, end before start, and over-long subject", async () => {
     const { c, actor } = await setup();
-    await expect(saveSchedule(actor, c.id, { "start-1": "8:00" })).rejects.toMatchObject({ code: "VALIDATION" });
+    await expect(saveSchedule(actor, c.id, { "start-1": "25:00" })).rejects.toMatchObject({ code: "VALIDATION", fieldErrors: { "start-1": expect.any(Array) } });
+    await expect(saveSchedule(actor, c.id, { "start-1": "8-00" })).rejects.toMatchObject({ code: "VALIDATION" });
     await expect(saveSchedule(actor, c.id, { "start-1": "09:00", "end-1": "08:30" })).rejects.toMatchObject({ code: "VALIDATION", fieldErrors: { "end-1": expect.any(Array) } });
     await expect(saveSchedule(actor, c.id, { "s-1-1": "x".repeat(61) })).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+  it("accepts single-digit hours and stores them zero-padded", async () => {
+    const { c, actor } = await setup();
+    await saveSchedule(actor, c.id, { "start-2": "8:00", "end-2": "8:40" });
+    expect((await getSchedule(actor, c.id)).periods[1]).toEqual({ period: 2, startTime: "08:00", endTime: "08:40" });
+  });
+  it("rejects a missing classId without touching any rows", async () => {
+    const { c, actor } = await setup();
+    await saveSchedule(actor, c.id, { "s-1-1": "Математик" });
+    await expect(saveSchedule(actor, "", { "s-1-1": "x" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(saveSchedule(actor, undefined as unknown as string, { "s-1-1": "x" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await prisma.lessonSlot.count()).toBe(1);
   });
   it("authorization: other teacher and accountant forbidden; admin allowed; parent reads own child's class only", async () => {
     const { c, actor } = await setup();
