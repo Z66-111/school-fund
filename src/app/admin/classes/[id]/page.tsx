@@ -14,6 +14,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <section className="rounded border bg-white p-4">
         <h1 className="mb-2 text-xl font-semibold">{c.name} — {c.schoolYear.name}</h1>
         <Link href={`/admin/classes/${c.id}/months`} className="mb-2 inline-block text-sm underline">{mn.attendance.closed}</Link>
+        <Link href={`/admin/classes/${c.id}/report`} className="mb-2 ml-3 inline-block text-sm underline">{mn.nav.report}</Link>
         <ActionForm action={updateClassRatesAction} submitLabel={mn.common.save}>
           <input type="hidden" name="classId" value={c.id} />
           <label className="text-sm">{mn.class.dailyFoodRate}<input name="dailyFoodRate" type="number" min={1} step={1} defaultValue={c.dailyFoodRate} className="w-full rounded border p-1" /></label>
