@@ -8,6 +8,8 @@ import { classFundReport } from "@/services/reports";
 import { getMonthAttendance } from "@/services/attendance";
 import { holidayDates } from "@/services/holidays";
 import { listChildren } from "@/services/students";
+import { getSchedule } from "@/services/schedule";
+import { ScheduleView } from "@/components/ScheduleView";
 import { AttendanceGrid, type GridDay } from "@/components/AttendanceGrid";
 import { MonthNav } from "@/components/MonthNav";
 import { StudentBalancesView } from "@/components/StudentBalances";
@@ -37,13 +39,14 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     year = t.getUTCFullYear();
     month = t.getUTCMonth() + 1;
   }
-  const [b, payments, fund, rows, holidays, children] = await Promise.all([
+  const [b, payments, fund, rows, holidays, children, schedule] = await Promise.all([
     studentBalances(actor, id),
     listPayments(actor, id),
     classFundReport(actor, student.classId),
     getMonthAttendance(student.classId, year, month),
     holidayDates(student.class.schoolYearId),
     listChildren(actor.userId),
+    getSchedule(actor, student.classId),
   ]);
   const days: GridDay[] = monthDates(year, month).map((d) => ({ iso: toISODate(d), day: d.getUTCDate(), weekday: d.getUTCDay(), chargeable: isChargeable(d, holidays), future: isFuture(d) }));
   const initial: Record<string, "PRESENT" | "ABSENT" | null> = {};
@@ -60,6 +63,10 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <MonthNav year={year} month={month} />
         </div>
         <AttendanceGrid key={`${year}-${month}`} students={[{ id, name: student.name }]} days={days} initial={initial} readOnly />
+      </section>
+      <section className="flex flex-col gap-3">
+        <h2>{mn.schedule.title}</h2>
+        <ScheduleView s={schedule} />
       </section>
       <FundReportView r={fund} classId={student.classId} />
     </div>
