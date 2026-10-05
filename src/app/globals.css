@@ -1,10 +1,11 @@
 @import "tailwindcss";
 
 /* Ledger paper, teal ink. Light values first; dark overrides below. */
+/* Light: pure white paper; hairlines and a faint header band carry the structure. */
 :root {
-  --paper: #f2f4f0;
+  --paper: #ffffff;
   --surface: #ffffff;
-  --surface-2: #e9ede8;
+  --surface-2: #eef1ee;
   --ink: #1b2320;
   --ink-muted: #5b665f;
   --rule: #d6dcd6;
@@ -100,6 +101,7 @@
     text-align: left;
     font-weight: 500;
     color: var(--ink-muted);
+    background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid var(--rule-strong);
     white-space: nowrap;
