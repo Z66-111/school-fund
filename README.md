@@ -30,9 +30,41 @@ Admin → Хэрэглэгчид before real use.
 - Нягтлан: outstanding balances, register and delete payments, monthly food report.
 - Эцэг эх: own children's attendance, bills, payments, class fund report.
 
-## Production
+## Production (Vercel + Turso, free tiers)
 
-Set `DATABASE_URL` to a persistent SQLite file (e.g. `file:/data/school.db`) and
-run `npx prisma db push` once. To move to Postgres, change `provider` in
-`prisma/schema.prisma` to `postgresql`, set `DATABASE_URL`, and run
-`npx prisma migrate dev`. No enum types are used, so the schema ports as is.
+The app runs on Vercel; the database is Turso (hosted SQLite). When
+`TURSO_DATABASE_URL` is set the app uses Turso, otherwise the local file
+(`src/lib/db.ts`).
+
+1. **Turso database** — sign up at turso.tech, then with the Turso CLI:
+
+       turso auth login
+       turso db locations                      # pick the closest region
+       turso db create school-fund --location <region>
+       turso db show --url school-fund         # -> TURSO_DATABASE_URL
+       turso db tokens create school-fund      # -> TURSO_AUTH_TOKEN
+
+2. **Copy the local data in** (creates the tables, then copies every row):
+
+       TURSO_DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run db:turso-copy
+
+   Do not upload `dev.db` directly (`turso db create --from-file`): the local
+   engine stores dates as numbers and the app on Turso stores them as text,
+   and mixing both breaks month filters.
+
+3. **Vercel** — push this repo to GitHub, then on vercel.com: Add New →
+   Project → import the repo. Under Environment Variables set
+   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and `DATABASE_URL="file:./unused.db"`
+   (required by the Prisma schema, not used). Deploy. The site is at
+   `https://<project>.vercel.app`.
+
+4. **Before sharing the link**, log in as admin and change every `changeme`
+   password (Admin → Хэрэглэгчид).
+
+**Later schema changes**: generate the SQL from the previous schema and apply it
+with the Turso CLI, e.g.
+
+    git show HEAD~1:prisma/schema.prisma > /tmp/old.prisma
+    npx prisma migrate diff --from-schema-datamodel /tmp/old.prisma \
+      --to-schema-datamodel prisma/schema.prisma --script > change.sql
+    turso db shell school-fund < change.sql

@@ -11,9 +11,12 @@
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "e2e": "playwright test"
+    "db:turso-copy": "tsx prisma/turso-copy.ts",
+    "e2e": "playwright test",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-libsql": "^6.19.3",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "next": "16.3.8",
