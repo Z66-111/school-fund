@@ -1,17 +1,19 @@
 "use client";
 import { useState, useTransition } from "react";
-import { toggleAttendanceAction } from "@/actions/attendance";
+import { toggleAttendanceAction, setDayAction } from "@/actions/attendance";
 import { mn } from "@/lib/i18n/mn";
+import type { AttendanceStatus } from "@/lib/roles";
 
 export type GridStudent = { id: string; name: string };
 export type GridDay = { iso: string; day: number; weekday: number; chargeable: boolean; future: boolean };
-type Status = "PRESENT" | "ABSENT" | null;
+type Status = AttendanceStatus | null;
 
-export function AttendanceGrid({ students, days, initial, readOnly }: {
+export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
   students: GridStudent[];
   days: GridDay[];
   initial: Record<string, Status>; // key `${studentId}|${iso}`
   readOnly: boolean;
+  classId?: string; // enables whole-day select / clear from the column header
 }) {
   const [cells, setCells] = useState(initial);
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +38,37 @@ export function AttendanceGrid({ students, days, initial, readOnly }: {
     });
   };
 
-  const label = (s: Status) => (s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : "");
+  const dayAllPresent = (iso: string) => students.length > 0 && students.every((s) => cells[`${s.id}|${iso}`] === "PRESENT");
+  const clickDay = (iso: string) => {
+    if (!classId) return;
+    const present = !dayAllPresent(iso);
+    const key = `day|${iso}`;
+    setPending((p) => new Set(p).add(key));
+    start(async () => {
+      const r = await setDayAction(classId, iso, present);
+      setPending((p) => { const n = new Set(p); n.delete(key); return n; });
+      if (r.ok) {
+        setError(null);
+        setCells((c) => {
+          const n = { ...c };
+          for (const s of students) n[`${s.id}|${iso}`] = present ? "PRESENT" : null;
+          return n;
+        });
+      } else setError(r.error);
+    });
+  };
+  const canMarkDay = (d: GridDay) => !!classId && !readOnly && d.chargeable && !d.future && students.length > 0;
+
+  const label = (s: Status) =>
+    s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
   const tone = (s: Status) =>
-    s === "PRESENT" ? "bg-present-soft text-present" : s === "ABSENT" ? "bg-absent-soft text-absent" : "bg-surface text-transparent ring-1 ring-inset ring-rule";
+    s === "PRESENT"
+      ? "bg-present-soft text-present"
+      : s === "ABSENT"
+        ? "bg-absent-soft text-absent"
+        : s === "SICK"
+          ? "bg-due-soft text-due"
+          : "bg-surface text-transparent ring-1 ring-inset ring-rule";
 
   return (
     <div className="flex flex-col gap-3">
@@ -55,8 +85,24 @@ export function AttendanceGrid({ students, days, initial, readOnly }: {
                   key={d.iso}
                   className={`w-8 min-w-8 px-0 py-1 text-center font-medium leading-tight ${d.chargeable ? "text-ink-muted" : "bg-surface-2 text-ink-muted/60"}`}
                 >
-                  <span className="num block text-[13px] text-ink">{d.day}</span>
-                  <span className="block text-[10px]">{mn.weekdaysShort[d.weekday]}</span>
+                  {canMarkDay(d) ? (
+                    <button
+                      type="button"
+                      disabled={pending.has(`day|${d.iso}`)}
+                      onClick={() => clickDay(d.iso)}
+                      title={dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}
+                      aria-label={`${d.iso}: ${dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}`}
+                      className={`w-full rounded-sm py-0.5 hover:bg-teal-soft hover:text-teal disabled:cursor-wait ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
+                    >
+                      <span className="num block text-[13px] text-ink">{d.day}</span>
+                      <span className="block text-[10px]">{mn.weekdaysShort[d.weekday]}</span>
+                    </button>
+                  ) : (
+                    <>
+                      <span className="num block text-[13px] text-ink">{d.day}</span>
+                      <span className="block text-[10px]">{mn.weekdaysShort[d.weekday]}</span>
+                    </>
+                  )}
                 </th>
               ))}
               <th className="sticky right-0 z-10 whitespace-nowrap border-l border-rule bg-surface px-3 py-2 text-right font-medium text-ink-muted">{mn.attendance.daysPresent}</th>
@@ -101,9 +147,11 @@ export function AttendanceGrid({ students, days, initial, readOnly }: {
         <span>{mn.attendance.legend}:</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-present-soft ring-1 ring-present/40" />{mn.attendance.present}</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-absent-soft ring-1 ring-absent/40" />{mn.attendance.absent}</span>
+        <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-due-soft ring-1 ring-due/40" />{mn.attendance.sick}</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface ring-1 ring-rule-strong" />{mn.attendance.unmarked}</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface-2" />{mn.attendance.nonChargeable}</span>
         {!readOnly && <span>{mn.attendance.clickToMark}</span>}
+        {!readOnly && classId && <span>{mn.attendance.clickDayHint}</span>}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toggleAttendance, markAllPresent, getMonthAttendance, isMonthClosed } from "@/services/attendance";
+import { toggleAttendance, markAllPresent, clearDay, getMonthAttendance, isMonthClosed } from "@/services/attendance";
 import { prisma } from "@/lib/db";
 import { f, actorOf } from "../helpers/db";
 
@@ -14,10 +14,11 @@ async function setup() {
 }
 
 describe("toggleAttendance", () => {
-  it("cycles unmarked -> PRESENT -> ABSENT -> unmarked", async () => {
+  it("cycles unmarked -> PRESENT -> ABSENT -> SICK -> unmarked", async () => {
     const { s, actor } = await setup();
     expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("PRESENT");
     expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("ABSENT");
+    expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("SICK");
     expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBeNull();
     expect(await prisma.attendance.count()).toBe(0);
   });
@@ -56,5 +57,14 @@ describe("markAllPresent / getMonthAttendance", () => {
     expect(rows.map((r) => r.studentId).sort()).toEqual([s.id, s3.id].sort());
     expect(rows.every((r) => r.status === "PRESENT")).toBe(true);
     expect(await getMonthAttendance(c.id, 2026, 9)).toEqual([]);
+  });
+  it("clearDay removes that day's marks for the class only", async () => {
+    const { c, s, actor } = await setup();
+    await markAllPresent(actor, { classId: c.id, date: "2026-10-20" }, NOW);
+    await toggleAttendance(actor, { studentId: s.id, date: "2026-10-19" }, NOW);
+    expect(await clearDay(actor, { classId: c.id, date: "2026-10-20" }, NOW)).toBe(1);
+    const rows = await getMonthAttendance(c.id, 2026, 10);
+    expect(rows.map((r) => r.date.toISOString().slice(0, 10))).toEqual(["2026-10-19"]);
+    await expect(clearDay(actor, { classId: c.id, date: "2026-10-21" }, NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
   });
 });

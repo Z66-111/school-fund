@@ -43,6 +43,10 @@ export async function toggleAttendance(actor: Actor, input: unknown, now: Date =
     await prisma.attendance.update({ where: { id: existing.id }, data: { status: "ABSENT" } });
     return "ABSENT";
   }
+  if (existing.status === "ABSENT") {
+    await prisma.attendance.update({ where: { id: existing.id }, data: { status: "SICK" } });
+    return "SICK";
+  }
   await prisma.attendance.deleteMany({ where: { studentId: v.studentId, date } });
   return null;
 }
@@ -67,6 +71,17 @@ export async function markAllPresent(actor: Actor, input: unknown, now: Date = n
     ),
   );
   return students.length;
+}
+
+export async function clearDay(actor: Actor, input: unknown, now: Date = new Date()): Promise<number> {
+  requireRole(actor, "TEACHER");
+  const v = parse(allSchema, input);
+  await assertClassAccess(actor, v.classId);
+  const klass = await prisma.class.findUniqueOrThrow({ where: { id: v.classId } });
+  const date = parseDateOnly(v.date);
+  await guardDate(v.classId, klass.schoolYearId, date, now);
+  const { count } = await prisma.attendance.deleteMany({ where: { date, student: { classId: v.classId, isActive: true } } });
+  return count;
 }
 
 export function getMonthAttendance(classId: string, year: number, month: number) {
