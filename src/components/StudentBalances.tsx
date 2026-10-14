@@ -7,17 +7,17 @@ import type { StudentBalances } from "@/services/payments";
 
 type PaymentRow = { id: string; kind: string; amount: number; paidAt: Date; note: string; registeredBy: { name: string } };
 
-export function StudentBalancesView({ b, payments }: { b: StudentBalances; payments: PaymentRow[] }) {
+export function StudentBalancesView({ b, payments, tiles = true }: { b: StudentBalances; payments: PaymentRow[]; tiles?: boolean }) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+      {tiles && <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
         <StatTile label={mn.payment.foodDue} value={b.foodOutstanding} tone={b.foodOutstanding > 0 ? "due" : "good"} />
         <StatTile label={mn.payment.fundDue} value={b.fundDue} tone={b.fundDue > 0 ? "due" : "good"} />
         <StatTile label={`${mn.payment.ANNUAL_FUND}, ${mn.invoice.paid.toLowerCase()}`} value={b.fundPaid} tone="neutral" />
         {b.foodCredit > 0
           ? <StatTile label={mn.invoice.credit} value={b.foodCredit} tone="teal" />
           : <StatTile label={mn.class.annualFundAmount} value={b.annualFundAmount} tone="neutral" />}
-      </div>
+      </div>}
       <div className="grid gap-6 xl:grid-cols-2">
         <section>
           <h2 className="mb-2">{mn.invoice.title}</h2>
