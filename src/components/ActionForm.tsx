@@ -1,7 +1,8 @@
 "use client";
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import type { ActionResult } from "@/lib/action";
 import { buttonClass, type ButtonVariant, type ButtonSize } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Props = {
   action: (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
@@ -18,6 +19,8 @@ type Props = {
 
 export function ActionForm({ action, submitLabel, children, className, confirm, labels, variant = "primary", size = "md", preserve = false }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
+  const [asking, setAsking] = useState(false);
+  const held = useRef<FormData | null>(null);
   const fieldMessages =
     state && !state.ok && state.fieldErrors
       ? [
@@ -33,8 +36,10 @@ export function ActionForm({ action, submitLabel, children, className, confirm, 
       action={formAction}
       className={className ?? "flex flex-col gap-3"}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) {
+        if (confirm) {
           e.preventDefault();
+          held.current = new FormData(e.currentTarget);
+          setAsking(true);
           return;
         }
         if (preserve) {
@@ -63,6 +68,20 @@ export function ActionForm({ action, submitLabel, children, className, confirm, 
       <button disabled={pending} className={`${buttonClass(variant, size)} self-start`}>
         {submitLabel}
       </button>
+      {confirm && (
+        <ConfirmDialog
+          open={asking}
+          message={confirm}
+          confirmLabel={submitLabel}
+          variant={variant}
+          onCancel={() => setAsking(false)}
+          onConfirm={() => {
+            setAsking(false);
+            const fd = held.current;
+            if (fd) startTransition(() => formAction(fd));
+          }}
+        />
+      )}
     </form>
   );
 }

@@ -26,8 +26,8 @@ test("teacher marks attendance and closes month; accountant pays; parent sees ze
   const cell = page.locator("tbody tr").first().locator("button:not([disabled])").first();
   await cell.click();
   await expect(cell).toHaveText("И");
-  page.once("dialog", (d) => d.accept());
-  await page.click('button:has-text("Сар хаах")');
+  await page.click('form button:has-text("Сар хаах")');
+  await page.getByRole("dialog").getByRole("button", { name: "Сар хаах" }).click();
   await expect(page.locator("text=Хаагдсан")).toBeVisible();
   await logout(page);
 
