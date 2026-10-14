@@ -1,68 +1,119 @@
 "use client";
-import { useState, useTransition } from "react";
-import { toggleAttendanceAction, setDayAction } from "@/actions/attendance";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { saveAttendanceAction, saveDaycareAction } from "@/actions/attendance";
+import { buttonClass } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { mn } from "@/lib/i18n/mn";
 import type { AttendanceStatus } from "@/lib/roles";
 
 export type GridStudent = { id: string; name: string };
 export type GridDay = { iso: string; day: number; weekday: number; chargeable: boolean; future: boolean };
-type Status = AttendanceStatus | null;
+export type GridMode = "attendance" | "daycare";
+type Status = AttendanceStatus | "STAYED" | null;
+type Cells = Record<string, Status>; // key `${studentId}|${iso}`
 
-export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
+// Click cycles per mode; `all` is what a day-number click fills in, and what the right-hand count totals.
+const MODES: Record<GridMode, { next: Record<string, Status>; all: Status }> = {
+  attendance: { next: { none: "PRESENT", PRESENT: "ABSENT", ABSENT: "SICK", SICK: null }, all: "PRESENT" },
+  daycare: { next: { none: "STAYED", STAYED: null }, all: "STAYED" },
+};
+
+/**
+ * Month attendance grid. With `classId` and not `readOnly`, clicks only edit a local draft;
+ * nothing is stored (or billed) until the teacher presses Хадгалах.
+ */
+export function AttendanceGrid({ students, days, initial, readOnly, classId, todayIso, monthActions, mode = "attendance" }: {
   students: GridStudent[];
   days: GridDay[];
-  initial: Record<string, Status>; // key `${studentId}|${iso}`
+  initial: Cells;
   readOnly: boolean;
-  classId?: string; // enables whole-day select / clear from the column header
+  classId?: string;
+  todayIso?: string;
+  monthActions?: React.ReactNode; // e.g. close month; disabled while there are unsaved edits
+  mode?: GridMode; // "daycare" marks who stayed for Өдөр өнжүүлэх instead of class attendance
 }) {
+  const { next, all } = MODES[mode];
+  const editable = !readOnly && !!classId;
+  const router = useRouter();
+  const [saved, setSaved] = useState(initial);
   const [cells, setCells] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<Set<string>>(new Set());
   const [seeded, setSeeded] = useState(initial);
-  if (seeded !== initial) { // re-seed when a revalidated server render passes new data
+  if (seeded !== initial) { // a revalidated server render passes the stored marks
     setSeeded(initial);
+    setSaved(initial);
     setCells(initial);
   }
-  const [, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  const [saving, start] = useTransition();
 
-  const click = (studentId: string, iso: string) => {
-    const key = `${studentId}|${iso}`;
-    setPending((p) => new Set(p).add(key));
+  const changes: { studentId: string; date: string; status: Status }[] = [];
+  for (const s of students) {
+    for (const d of days) {
+      const k = `${s.id}|${d.iso}`;
+      if ((cells[k] ?? null) !== (saved[k] ?? null)) changes.push({ studentId: s.id, date: d.iso, status: cells[k] ?? null });
+    }
+  }
+  const dirty = changes.length > 0;
+
+  // Warn before losing a draft: tab close / reload, and in-app links (month arrows, tabs, nav).
+  useEffect(() => {
+    if (!dirty) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!a || a.target === "_blank" || a.hasAttribute("download") || e.metaKey || e.ctrlKey) return;
+      const url = new URL(a.href, location.href);
+      if (url.origin !== location.origin) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTo(url.pathname + url.search);
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [dirty]);
+
+  const edit = (fn: (c: Cells) => Cells) => {
+    setNotice(null);
+    setError(null);
+    setCells(fn);
+  };
+  const click = (studentId: string, iso: string) =>
+    edit((c) => ({ ...c, [`${studentId}|${iso}`]: next[c[`${studentId}|${iso}`] ?? "none"] }));
+  const setDay = (iso: string, status: Status) =>
+    edit((c) => {
+      const n = { ...c };
+      for (const s of students) n[`${s.id}|${iso}`] = status;
+      return n;
+    });
+  const dayAllPresent = (iso: string) => students.length > 0 && students.every((s) => cells[`${s.id}|${iso}`] === all);
+  const canMarkDay = (d: GridDay) => editable && d.chargeable && !d.future && students.length > 0;
+  const today = days.find((d) => d.iso === todayIso && canMarkDay(d));
+
+  const save = () =>
     start(async () => {
-      const r = await toggleAttendanceAction(studentId, iso);
-      setPending((p) => { const n = new Set(p); n.delete(key); return n; });
+      const r = mode === "daycare"
+        ? await saveDaycareAction(classId!, changes.map((c) => ({ studentId: c.studentId, date: c.date, present: c.status !== null })))
+        : await saveAttendanceAction(classId!, changes.map((c) => ({ ...c, status: c.status as AttendanceStatus | null })));
       if (r.ok) {
+        setSaved(cells);
         setError(null);
-        setCells((c) => ({ ...c, [`${studentId}|${iso}`]: r.status }));
+        setNotice(mn.attendance.saved);
       } else setError(r.error);
     });
-  };
-
-  const dayAllPresent = (iso: string) => students.length > 0 && students.every((s) => cells[`${s.id}|${iso}`] === "PRESENT");
-  const clickDay = (iso: string) => {
-    if (!classId) return;
-    const present = !dayAllPresent(iso);
-    const key = `day|${iso}`;
-    setPending((p) => new Set(p).add(key));
-    start(async () => {
-      const r = await setDayAction(classId, iso, present);
-      setPending((p) => { const n = new Set(p); n.delete(key); return n; });
-      if (r.ok) {
-        setError(null);
-        setCells((c) => {
-          const n = { ...c };
-          for (const s of students) n[`${s.id}|${iso}`] = present ? "PRESENT" : null;
-          return n;
-        });
-      } else setError(r.error);
-    });
-  };
-  const canMarkDay = (d: GridDay) => !!classId && !readOnly && d.chargeable && !d.future && students.length > 0;
 
   const label = (s: Status) =>
-    s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
+    s === "STAYED" ? mn.attendance.daycareMark : s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
   const tone = (s: Status) =>
-    s === "PRESENT"
+    s === "STAYED"
+      ? "bg-teal-soft text-teal"
+      : s === "PRESENT"
       ? "bg-present-soft text-present"
       : s === "ABSENT"
         ? "bg-absent-soft text-absent"
@@ -72,6 +123,27 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
 
   return (
     <div className="flex flex-col gap-3">
+      {editable && (
+        <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-paper px-1 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {today && (
+              <>
+                <button type="button" onClick={() => setDay(today.iso, all)} className={buttonClass("secondary", "sm")}>{mode === "daycare" ? mn.attendance.allStayedToday : mn.attendance.markAllPresentToday}</button>
+                <button type="button" onClick={() => setDay(today.iso, null)} className={buttonClass("secondary", "sm")}>{mn.attendance.clearToday}</button>
+              </>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {dirty && <span className="text-sm text-due">{changes.length} {mn.attendance.unsaved}</span>}
+            {!dirty && notice && <span className="text-sm text-present" role="status">{notice}</span>}
+            {dirty && <button type="button" disabled={saving} onClick={() => edit(() => saved)} className={buttonClass("secondary", "sm")}>{mn.common.cancel}</button>}
+            <button type="button" disabled={!dirty || saving} onClick={save} className={buttonClass("primary", "sm")}>{mn.common.save}</button>
+            {monthActions && (
+              <fieldset disabled={dirty || saving} title={dirty ? mn.attendance.saveFirst : undefined} className="contents">{monthActions}</fieldset>
+            )}
+          </div>
+        </div>
+      )}
       {error && (
         <p className="rounded-sm border-l-2 border-absent bg-absent-soft px-3 py-2 text-sm text-absent" role="alert">{error}</p>
       )}
@@ -88,11 +160,10 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
                   {canMarkDay(d) ? (
                     <button
                       type="button"
-                      disabled={pending.has(`day|${d.iso}`)}
-                      onClick={() => clickDay(d.iso)}
+                      onClick={() => setDay(d.iso, dayAllPresent(d.iso) ? null : all)}
                       title={dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}
                       aria-label={`${d.iso}: ${dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}`}
-                      className={`w-full rounded-sm py-0.5 hover:bg-teal-soft hover:text-teal disabled:cursor-wait ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
+                      className={`w-full rounded-sm py-0.5 hover:bg-teal-soft hover:text-teal ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
                     >
                       <span className="num block text-[13px] text-ink">{d.day}</span>
                       <span className="block text-[10px]">{mn.weekdaysShort[d.weekday]}</span>
@@ -105,28 +176,31 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
                   )}
                 </th>
               ))}
-              <th className="sticky right-0 z-10 whitespace-nowrap border-l border-rule bg-surface px-3 py-2 text-right font-medium text-ink-muted">{mn.attendance.daysPresent}</th>
+              <th className="sticky right-0 z-10 whitespace-nowrap border-l border-rule bg-surface px-3 py-2 text-right font-medium text-ink-muted">{mode === "daycare" ? mn.attendance.daycareDays : mn.attendance.daysPresent}</th>
             </tr>
           </thead>
           <tbody>
             {students.map((s) => {
-              const present = days.filter((d) => d.chargeable && cells[`${s.id}|${d.iso}`] === "PRESENT").length;
+              const present = days.filter((d) => d.chargeable && cells[`${s.id}|${d.iso}`] === all).length;
               return (
                 <tr key={s.id} className="border-t border-rule">
                   <td className="sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 text-sm">{s.name}</td>
                   {days.map((d) => {
-                    const st = cells[`${s.id}|${d.iso}`] ?? null;
-                    const disabled = readOnly || !d.chargeable || d.future || pending.has(`${s.id}|${d.iso}`);
+                    const k = `${s.id}|${d.iso}`;
+                    const st = cells[k] ?? null;
+                    const changed = st !== (saved[k] ?? null);
+                    const disabled = !editable || d.future || saving;
                     if (!d.chargeable) return <td key={d.iso} className="bg-surface-2 p-0" />;
                     return (
                       <td key={d.iso} className="p-0.5">
                         <button
+                          type="button"
                           disabled={disabled}
                           onClick={() => click(s.id, d.iso)}
                           aria-label={`${s.name} ${d.iso}`}
                           className={`h-7 w-7 rounded-sm text-[12px] font-semibold transition-colors ${tone(st)} ${
                             disabled ? "cursor-not-allowed" : "hover:ring-1 hover:ring-teal"
-                          } ${d.future ? "opacity-40" : ""}`}
+                          } ${changed ? "outline-2 outline-offset-1 outline-dashed outline-teal" : ""} ${d.future ? "opacity-40" : ""}`}
                         >
                           {label(st)}
                         </button>
@@ -145,14 +219,35 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId }: {
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-ink-muted">
         <span>{mn.attendance.legend}:</span>
-        <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-present-soft ring-1 ring-present/40" />{mn.attendance.present}</span>
-        <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-absent-soft ring-1 ring-absent/40" />{mn.attendance.absent}</span>
-        <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-due-soft ring-1 ring-due/40" />{mn.attendance.sick}</span>
+        {mode === "daycare" ? (
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-teal-soft ring-1 ring-teal/40" />{mn.attendance.daycareStayed}</span>
+        ) : (
+          <>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-present-soft ring-1 ring-present/40" />{mn.attendance.present}</span>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-absent-soft ring-1 ring-absent/40" />{mn.attendance.absent}</span>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-due-soft ring-1 ring-due/40" />{mn.attendance.sick}</span>
+          </>
+        )}
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface ring-1 ring-rule-strong" />{mn.attendance.unmarked}</span>
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface-2" />{mn.attendance.nonChargeable}</span>
-        {!readOnly && <span>{mn.attendance.clickToMark}</span>}
-        {!readOnly && classId && <span>{mn.attendance.clickDayHint}</span>}
+        {editable && <span>{mn.attendance.clickToMark}</span>}
+        {editable && <span>{mn.attendance.clickDayHint}</span>}
       </div>
+      {editable && (
+        <ConfirmDialog
+          open={leaveTo !== null}
+          message={mn.attendance.unsavedLeave}
+          confirmLabel={mn.attendance.leaveWithoutSaving}
+          variant="danger"
+          onCancel={() => setLeaveTo(null)}
+          onConfirm={() => {
+            const to = leaveTo!;
+            setLeaveTo(null);
+            setCells(saved); // drop the draft so the guard lets the navigation through
+            router.push(to);
+          }}
+        />
+      )}
     </div>
   );
 }

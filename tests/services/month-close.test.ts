@@ -58,6 +58,35 @@ describe("closeMonth", () => {
   });
 });
 
+async function stayed(studentId: string, ...days: number[]) {
+  for (const d of days) await prisma.daycareAttendance.create({ data: { studentId, date: dateOnly(2026, 9, d) } });
+}
+
+describe("closeMonth daycare", () => {
+  it("bills ticked daycare days (not class attendance) at the class daycare rate; no invoice without days", async () => {
+    const { c, s1, s2, actor } = await setup();
+    await prisma.class.update({ where: { id: c.id }, data: { dailyDaycareRate: 27000 } });
+    await present(s1.id, 1, 2, 3);
+    await present(s2.id, 1);
+    await stayed(s1.id, 1, 2, 5); // Sep 5 is Saturday -> 2 days
+    await closeMonth(actor, { classId: c.id, year: "2026", month: "9" }, NOW);
+    const inv = await prisma.daycareInvoice.findMany();
+    expect(inv.map((i) => [i.studentId, i.daysPresent, i.rate, i.amount])).toEqual([[s1.id, 2, 27000, 54000]]);
+  });
+  it("reopening removes daycare invoices and a later daycare payment blocks it", async () => {
+    const { c, s1, actor } = await setup();
+    const admin = await f.user("ADMIN");
+    await stayed(s1.id, 1);
+    await closeMonth(actor, { classId: c.id, year: "2026", month: "9" }, NOW);
+    await reopenMonth(actorOf(admin), { classId: c.id, year: "2026", month: "9" });
+    expect(await prisma.daycareInvoice.count()).toBe(0);
+    await closeMonth(actor, { classId: c.id, year: "2026", month: "9" }, NOW);
+    const acc = await f.user("ACCOUNTANT");
+    await prisma.payment.create({ data: { studentId: s1.id, kind: "DAYCARE", amount: 27000, paidAt: new Date(), registeredById: acc.id } });
+    await expect(reopenMonth(actorOf(admin), { classId: c.id, year: "2026", month: "9" })).rejects.toMatchObject({ code: "REOPEN_BLOCKED" });
+  });
+});
+
 describe("reopenMonth", () => {
   it("admin reopens; invoices removed; attendance kept; blocked after a later payment", async () => {
     const { c, s1, actor, t } = await setup();

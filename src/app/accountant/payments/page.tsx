@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
+import type { PaymentKind } from "@/lib/roles";
 
 export default async function Page() {
   const actor = await requirePage("ACCOUNTANT", "ADMIN");
@@ -23,7 +24,7 @@ export default async function Page() {
               <td className="num">{toISODate(p.paidAt)}</td>
               <td>{p.student.class.name}</td>
               <td className="font-medium">{p.student.name}</td>
-              <td>{mn.payment[p.kind as "FOOD" | "ANNUAL_FUND"]}</td>
+              <td>{mn.payment[p.kind as PaymentKind]}</td>
               <td className="num"><Money v={p.amount} className={p.deletedAt ? "line-through" : ""} /></td>
               <td className="text-ink-muted">{p.note}</td>
               <td className="text-ink-muted">{p.registeredBy.name}</td>

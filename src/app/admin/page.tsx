@@ -25,15 +25,17 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   }
   const [classes, rows] = await Promise.all([listClasses(selected.id), outstandingTable(actor)]);
   const classIds = new Set(classes.map((c) => c.id));
-  const byClass = new Map<string, { food: number; fund: number }>();
-  let food = 0, fund = 0;
+  const byClass = new Map<string, { food: number; daycare: number; fund: number }>();
+  let food = 0, daycare = 0, fund = 0;
   for (const r of rows) {
     if (!classIds.has(r.classId)) continue;
-    const t = byClass.get(r.classId) ?? { food: 0, fund: 0 };
+    const t = byClass.get(r.classId) ?? { food: 0, daycare: 0, fund: 0 };
     t.food += r.foodDue;
+    t.daycare += r.daycareDue;
     t.fund += r.fundDue;
     byClass.set(r.classId, t);
     food += r.foodDue;
+    daycare += r.daycareDue;
     fund += r.fundDue;
   }
   return (
@@ -46,22 +48,24 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           <button className={buttonClass("secondary", "sm")}>{mn.common.apply}</button>
         </form>
       </PageHeader>
-      <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
         <StatTile label={mn.nav.classes} value={String(classes.length)} money={false} tone="neutral" />
         <StatTile label={mn.class.foodOutstanding} value={food} tone={food > 0 ? "due" : "good"} />
+        <StatTile label={mn.class.daycareOutstanding} value={daycare} tone={daycare > 0 ? "due" : "good"} />
         <StatTile label={mn.class.fundOutstanding} value={fund} tone={fund > 0 ? "due" : "good"} />
       </div>
       <Table>
-        <thead><tr><th>{mn.common.class}</th><th>{mn.common.teacher}</th><th className="ctr">{mn.nav.students}</th><th className="num">{mn.class.foodOutstanding}</th><th className="num">{mn.class.fundOutstanding}</th><th /></tr></thead>
+        <thead><tr><th>{mn.common.class}</th><th>{mn.common.teacher}</th><th className="ctr">{mn.nav.students}</th><th className="num">{mn.class.foodOutstanding}</th><th className="num">{mn.class.daycareOutstanding}</th><th className="num">{mn.class.fundOutstanding}</th><th /></tr></thead>
         <tbody>
           {classes.map((c) => {
-            const t = byClass.get(c.id) ?? { food: 0, fund: 0 };
+            const t = byClass.get(c.id) ?? { food: 0, daycare: 0, fund: 0 };
             return (
               <tr key={c.id}>
                 <td><Link href={`/admin/classes/${c.id}`} className="link font-medium">{c.name}</Link></td>
                 <td className={c.teacher ? "" : "text-ink-muted"}>{c.teacher?.name ?? mn.class.noTeacher}</td>
                 <td className="ctr num">{c._count.students}</td>
                 <td className="num"><Money v={t.food} /></td>
+                <td className="num"><Money v={t.daycare} /></td>
                 <td className="num"><Money v={t.fund} /></td>
                 <td className="whitespace-nowrap text-right">
                   <Link href={`/teacher/class/${c.id}/attendance`} className="link mr-3">{mn.nav.attendance}</Link>
@@ -70,7 +74,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
               </tr>
             );
           })}
-          {classes.length === 0 && <tr><td colSpan={6} className="text-ink-muted">{mn.common.empty}</td></tr>}
+          {classes.length === 0 && <tr><td colSpan={7} className="text-ink-muted">{mn.common.empty}</td></tr>}
         </tbody>
       </Table>
     </div>

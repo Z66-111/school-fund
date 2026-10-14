@@ -32,18 +32,19 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ y
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Table>
-            <thead><tr><th>{mn.common.class}</th><th>{mn.common.teacher}</th><th className="num">{mn.class.dailyFoodRate}</th><th className="num">{mn.class.annualFundAmount}</th><th className="ctr">{mn.nav.students}</th></tr></thead>
+            <thead><tr><th>{mn.common.class}</th><th>{mn.common.teacher}</th><th className="num">{mn.class.dailyFoodRate}</th><th className="num">{mn.class.dailyDaycareRate}</th><th className="num">{mn.class.annualFundAmount}</th><th className="ctr">{mn.nav.students}</th></tr></thead>
             <tbody>
               {classes.map((c) => (
                 <tr key={c.id}>
                   <td><Link href={`/admin/classes/${c.id}`} className="link font-medium">{c.name}</Link></td>
                   <td className={c.teacher ? "" : "text-ink-muted"}>{c.teacher?.name ?? mn.class.noTeacher}</td>
                   <td className="num"><Money v={c.dailyFoodRate} /></td>
+                  <td className="num"><Money v={c.dailyDaycareRate} /></td>
                   <td className="num"><Money v={c.annualFundAmount} /></td>
                   <td className="ctr num">{c._count.students}</td>
                 </tr>
               ))}
-              {classes.length === 0 && <tr><td colSpan={5} className="text-ink-muted">{mn.common.empty}</td></tr>}
+              {classes.length === 0 && <tr><td colSpan={6} className="text-ink-muted">{mn.common.empty}</td></tr>}
             </tbody>
           </Table>
         </div>
@@ -52,6 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ y
             <input type="hidden" name="schoolYearId" value={year.id} />
             <Field label={mn.common.name}><input name="name" required className="input" placeholder="1А" /></Field>
             <Field label={mn.class.dailyFoodRate}><input name="dailyFoodRate" type="number" min={1} step={1} required className="input" /></Field>
+            <Field label={mn.class.dailyDaycareRate}><input name="dailyDaycareRate" type="number" min={1} step={1} required defaultValue={27000} className="input" /></Field>
             <Field label={mn.class.annualFundAmount}><input name="annualFundAmount" type="number" min={1} step={1} required className="input" /></Field>
           </ActionForm>
         </Card>

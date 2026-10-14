@@ -27,6 +27,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <ActionForm action={updateClassRatesAction} submitLabel={mn.common.save}>
             <input type="hidden" name="classId" value={c.id} />
             <Field label={mn.class.dailyFoodRate}><input name="dailyFoodRate" type="number" min={1} step={1} defaultValue={c.dailyFoodRate} className="input" /></Field>
+            <Field label={mn.class.dailyDaycareRate}><input name="dailyDaycareRate" type="number" min={1} step={1} defaultValue={c.dailyDaycareRate} className="input" /></Field>
             <Field label={mn.class.annualFundAmount}><input name="annualFundAmount" type="number" min={1} step={1} defaultValue={c.annualFundAmount} className="input" /></Field>
           </ActionForm>
         </Card>

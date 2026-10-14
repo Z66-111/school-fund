@@ -5,7 +5,7 @@ import { assertStudentAccess } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { studentBalances, listPayments } from "@/services/payments";
 import { classFundReport } from "@/services/reports";
-import { getMonthAttendance } from "@/services/attendance";
+import { getMonthAttendance, getMonthDaycare } from "@/services/attendance";
 import { holidayDates } from "@/services/holidays";
 import { AttendanceGrid, type GridDay } from "@/components/AttendanceGrid";
 import { MonthNav } from "@/components/MonthNav";
@@ -37,16 +37,19 @@ export default async function Page({ params, searchParams }: { params: Promise<{
     year = t.getUTCFullYear();
     month = t.getUTCMonth() + 1;
   }
-  const [b, payments, fund, rows, holidays] = await Promise.all([
+  const [b, payments, fund, rows, stayed, holidays] = await Promise.all([
     studentBalances(actor, id),
     listPayments(actor, id),
     classFundReport(actor, student.classId),
     getMonthAttendance(student.classId, year, month),
+    getMonthDaycare(student.classId, year, month),
     holidayDates(student.class.schoolYearId),
   ]);
   const days: GridDay[] = monthDates(year, month).map((d) => ({ iso: toISODate(d), day: d.getUTCDate(), weekday: d.getUTCDay(), chargeable: isChargeable(d, holidays), future: isFuture(d) }));
   const initial: Record<string, AttendanceStatus | null> = {};
   for (const r of rows) if (r.studentId === id) initial[`${id}|${toISODate(r.date)}`] = r.status as AttendanceStatus;
+  const daycareInitial: Record<string, "STAYED"> = {};
+  for (const r of stayed) if (r.studentId === id) daycareInitial[`${id}|${toISODate(r.date)}`] = "STAYED";
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title={student.name} subtitle={`${mn.parent.detailTitle} · ${mn.common.class} ${student.class.name}`}>
@@ -58,6 +61,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <MonthNav year={year} month={month} />
         </div>
         <AttendanceGrid key={`${year}-${month}`} students={[{ id, name: student.name }]} days={days} initial={initial} readOnly />
+        <h3 className="mt-2 font-semibold">{mn.attendance.tabDaycare}</h3>
+        <AttendanceGrid key={`dc-${year}-${month}`} mode="daycare" students={[{ id, name: student.name }]} days={days} initial={daycareInitial} readOnly />
       </section>
       <StudentBalancesView b={b} payments={payments} tiles={false} />
       <FundReportView r={fund} classId={student.classId} />

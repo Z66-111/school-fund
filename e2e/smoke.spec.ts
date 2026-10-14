@@ -26,6 +26,8 @@ test("teacher marks attendance and closes month; accountant pays; parent sees ze
   const cell = page.locator("tbody tr").first().locator("button:not([disabled])").first();
   await cell.click();
   await expect(cell).toHaveText("И");
+  await page.click('button:has-text("Хадгалах")');
+  await expect(page.locator("text=Хадгалагдлаа")).toBeVisible();
   await page.click('form button:has-text("Сар хаах")');
   await page.getByRole("dialog").getByRole("button", { name: "Сар хаах" }).click();
   await expect(page.locator("text=Хаагдсан")).toBeVisible();
@@ -39,10 +41,10 @@ test("teacher marks attendance and closes month; accountant pays; parent sees ze
   await page.selectOption('select[name="kind"]', "FOOD");
   await page.fill('input[name="amount"]', due);
   await page.click('button:has-text("Төлбөр бүртгэх")');
-  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны өр/ })).toHaveText(/^Хоолны өр\s*0 ₮$/);
+  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны мөнгө төлөх/ })).toHaveText(/^Хоолны мөнгө төлөх\s*0 ₮$/);
   await logout(page);
 
   await login(page, "parent@school.local");
   await expect(page).toHaveURL(/\/parent\/students\//);
-  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны өр/ })).toHaveText(/^Хоолны өр\s*0 ₮$/);
+  await expect(page.locator("div.border-l-2", { hasText: /^Хоолны мөнгө төлөх/ })).toHaveText(/^Хоолны мөнгө төлөх\s*0 ₮$/);
 });

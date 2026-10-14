@@ -23,12 +23,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
     </select>
   );
   if (!classId) return <p className="text-ink-muted">{mn.schoolYear.noActive}</p>;
-  const r = await monthlyFoodReport(actor, classId, year, month);
+  const [r, daycare] = await Promise.all([monthlyFoodReport(actor, classId, year, month), monthlyFoodReport(actor, classId, year, month, "DAYCARE")]);
   return (
     <div>
       <PageHeader title={mn.nav.foodReport} subtitle={year0.name} />
       <MonthPicker year={year} month={month} extra={picker} />
-      <FoodReportView r={r} classId={classId} />
+      <div className="flex flex-col gap-8">
+        <FoodReportView r={r} classId={classId} />
+        <FoodReportView r={daycare} classId={classId} />
+      </div>
     </div>
   );
 }

@@ -15,9 +15,10 @@ export async function GET(req: NextRequest) {
     return new Response(mn.errors.validation, { status: 400 });
   }
   try {
-    const r = await monthlyFoodReport(actor, q.get("classId") ?? "", year, month);
+    const kind = q.get("kind") === "DAYCARE" ? "DAYCARE" : "FOOD";
+    const r = await monthlyFoodReport(actor, q.get("classId") ?? "", year, month, kind);
     return new Response(foodReportCsv(r), {
-      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": csvDisposition(`food-${r.className}-${r.year}-${r.month}`) },
+      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": csvDisposition(`${kind === "DAYCARE" ? "daycare" : "food"}-${r.className}-${r.year}-${r.month}`) },
     });
   } catch (e) {
     if (e instanceof AppError) return new Response(e.message, { status: e.code === "FORBIDDEN" ? 403 : 400 });

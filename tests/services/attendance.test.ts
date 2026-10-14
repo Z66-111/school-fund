@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toggleAttendance, markAllPresent, clearDay, getMonthAttendance, isMonthClosed } from "@/services/attendance";
+import { saveAttendance, saveDaycare, getMonthAttendance, getMonthDaycare, isMonthClosed } from "@/services/attendance";
 import { prisma } from "@/lib/db";
 import { f, actorOf } from "../helpers/db";
 
@@ -13,58 +13,79 @@ async function setup() {
   return { t, y, c, s, actor: actorOf(t) };
 }
 
-describe("toggleAttendance", () => {
-  it("cycles unmarked -> PRESENT -> ABSENT -> SICK -> unmarked", async () => {
-    const { s, actor } = await setup();
-    expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("PRESENT");
-    expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("ABSENT");
-    expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBe("SICK");
-    expect(await toggleAttendance(actor, { studentId: s.id, date: "2026-10-05" }, NOW)).toBeNull();
-    expect(await prisma.attendance.count()).toBe(0);
+const one = (classId: string, studentId: string, date: string, status: "PRESENT" | "ABSENT" | "SICK" | null = "PRESENT") =>
+  ({ classId, changes: [{ studentId, date, status }] });
+
+describe("saveAttendance", () => {
+  it("stores a batch of marks, updates statuses and clears with null", async () => {
+    const { c, s, actor } = await setup();
+    const s2 = await f.student(c.id);
+    expect(await saveAttendance(actor, { classId: c.id, changes: [
+      { studentId: s.id, date: "2026-10-05", status: "PRESENT" },
+      { studentId: s2.id, date: "2026-10-05", status: "SICK" },
+      { studentId: s.id, date: "2026-10-06", status: "ABSENT" },
+    ] }, NOW)).toBe(3);
+    await saveAttendance(actor, { classId: c.id, changes: [
+      { studentId: s.id, date: "2026-10-05", status: "ABSENT" },
+      { studentId: s.id, date: "2026-10-06", status: null },
+    ] }, NOW);
+    const rows = await getMonthAttendance(c.id, 2026, 10);
+    expect(rows.map((r) => [r.studentId, r.date.toISOString().slice(0, 10), r.status]).sort()).toEqual(
+      [[s.id, "2026-10-05", "ABSENT"], [s2.id, "2026-10-05", "SICK"]].sort(),
+    );
+    expect(await getMonthAttendance(c.id, 2026, 9)).toEqual([]);
   });
-  it("rejects future dates, weekends, holidays", async () => {
-    const { s, y, actor } = await setup();
+  it("rejects future dates, weekends, holidays, and saves nothing from a bad batch", async () => {
+    const { c, s, y, actor } = await setup();
     await f.holiday(y.id, new Date("2026-10-06T00:00:00Z"));
-    await expect(toggleAttendance(actor, { studentId: s.id, date: "2026-10-21" }, NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
-    await expect(toggleAttendance(actor, { studentId: s.id, date: "2026-10-04" }, NOW)).rejects.toMatchObject({ code: "NON_CHARGEABLE_DAY" });
-    await expect(toggleAttendance(actor, { studentId: s.id, date: "2026-10-06" }, NOW)).rejects.toMatchObject({ code: "NON_CHARGEABLE_DAY" });
+    await expect(saveAttendance(actor, one(c.id, s.id, "2026-10-21"), NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
+    await expect(saveAttendance(actor, one(c.id, s.id, "2026-10-04"), NOW)).rejects.toMatchObject({ code: "NON_CHARGEABLE_DAY" });
+    await expect(saveAttendance(actor, one(c.id, s.id, "2026-10-06"), NOW)).rejects.toMatchObject({ code: "NON_CHARGEABLE_DAY" });
+    await expect(saveAttendance(actor, { classId: c.id, changes: [
+      { studentId: s.id, date: "2026-10-05", status: "PRESENT" },
+      { studentId: s.id, date: "2026-10-21", status: "PRESENT" },
+    ] }, NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
+    expect(await prisma.attendance.count()).toBe(0);
   });
   it("rejects when month is closed", async () => {
     const { s, c, t, actor } = await setup();
     await prisma.monthClose.create({ data: { classId: c.id, year: 2026, month: 9, closedById: t.id } });
     expect(await isMonthClosed(c.id, 2026, 9)).toBe(true);
-    await expect(toggleAttendance(actor, { studentId: s.id, date: "2026-09-15" }, NOW)).rejects.toMatchObject({ code: "MONTH_CLOSED" });
+    await expect(saveAttendance(actor, one(c.id, s.id, "2026-09-15"), NOW)).rejects.toMatchObject({ code: "MONTH_CLOSED" });
   });
-  it("other teacher, accountant and admin cannot mark", async () => {
-    const { s } = await setup();
+  it("other teacher, accountant, admin, and students from another class are refused", async () => {
+    const { c, s, actor, y } = await setup();
     const t2 = await f.user("TEACHER");
-    await expect(toggleAttendance(actorOf(t2), { studentId: s.id, date: "2026-10-05" }, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(saveAttendance(actorOf(t2), one(c.id, s.id, "2026-10-05"), NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
     const acc = await f.user("ACCOUNTANT");
-    await expect(toggleAttendance(actorOf(acc), { studentId: s.id, date: "2026-10-05" }, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(saveAttendance(actorOf(acc), one(c.id, s.id, "2026-10-05"), NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
     const admin = await f.user("ADMIN");
-    await expect(toggleAttendance(actorOf(admin), { studentId: s.id, date: "2026-10-05" }, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(saveAttendance(actorOf(admin), one(c.id, s.id, "2026-10-05"), NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const other = await f.klass({ teacherId: t2.id, schoolYearId: y.id });
+    const stranger = await f.student(other.id);
+    await expect(saveAttendance(actor, one(c.id, stranger.id, "2026-10-05"), NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
 
-describe("markAllPresent / getMonthAttendance", () => {
-  it("marks active students only and reads back the month", async () => {
+describe("saveDaycare", () => {
+  it("ticks and unticks daycare days separately from class attendance", async () => {
     const { c, s, actor } = await setup();
-    await f.student(c.id, { isActive: false });
-    const s3 = await f.student(c.id);
-    expect(await markAllPresent(actor, { classId: c.id, date: "2026-10-20" }, NOW)).toBe(2);
-    expect(await markAllPresent(actor, { classId: c.id, date: "2026-10-20" }, NOW)).toBe(2); // idempotent
-    const rows = await getMonthAttendance(c.id, 2026, 10);
-    expect(rows.map((r) => r.studentId).sort()).toEqual([s.id, s3.id].sort());
-    expect(rows.every((r) => r.status === "PRESENT")).toBe(true);
-    expect(await getMonthAttendance(c.id, 2026, 9)).toEqual([]);
+    await saveDaycare(actor, { classId: c.id, changes: [
+      { studentId: s.id, date: "2026-10-05", present: true },
+      { studentId: s.id, date: "2026-10-07", present: true },
+    ] }, NOW);
+    await saveDaycare(actor, { classId: c.id, changes: [{ studentId: s.id, date: "2026-10-07", present: false }] }, NOW);
+    expect((await getMonthDaycare(c.id, 2026, 10)).map((r) => r.date.toISOString().slice(0, 10))).toEqual(["2026-10-05"]);
+    expect(await getMonthAttendance(c.id, 2026, 10)).toEqual([]);
   });
-  it("clearDay removes that day's marks for the class only", async () => {
-    const { c, s, actor } = await setup();
-    await markAllPresent(actor, { classId: c.id, date: "2026-10-20" }, NOW);
-    await toggleAttendance(actor, { studentId: s.id, date: "2026-10-19" }, NOW);
-    expect(await clearDay(actor, { classId: c.id, date: "2026-10-20" }, NOW)).toBe(1);
-    const rows = await getMonthAttendance(c.id, 2026, 10);
-    expect(rows.map((r) => r.date.toISOString().slice(0, 10))).toEqual(["2026-10-19"]);
-    await expect(clearDay(actor, { classId: c.id, date: "2026-10-21" }, NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
+  it("uses the same date and access rules as attendance", async () => {
+    const { c, s, t, actor } = await setup();
+    await expect(saveDaycare(actor, { classId: c.id, changes: [{ studentId: s.id, date: "2026-10-21", present: true }] }, NOW)).rejects.toMatchObject({ code: "FUTURE_DATE" });
+    await expect(saveDaycare(actor, { classId: c.id, changes: [{ studentId: s.id, date: "2026-10-04", present: true }] }, NOW)).rejects.toMatchObject({ code: "NON_CHARGEABLE_DAY" });
+    await prisma.monthClose.create({ data: { classId: c.id, year: 2026, month: 9, closedById: t.id } });
+    await expect(saveDaycare(actor, { classId: c.id, changes: [{ studentId: s.id, date: "2026-09-15", present: true }] }, NOW)).rejects.toMatchObject({ code: "MONTH_CLOSED" });
+    const acc = await f.user("ACCOUNTANT");
+    await expect(saveDaycare(actorOf(acc), { classId: c.id, changes: [{ studentId: s.id, date: "2026-10-05", present: true }] }, NOW)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await prisma.daycareAttendance.count()).toBe(0);
   });
 });

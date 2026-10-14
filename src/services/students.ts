@@ -26,11 +26,12 @@ export async function setStudentActive(actor: Actor, studentId: string, isActive
 export async function deleteStudent(actor: Actor, studentId: string): Promise<void> {
   requireRole(actor, "TEACHER", "ADMIN");
   await assertStudentAccess(actor, studentId);
-  const [inv, pay] = await Promise.all([
+  const [inv, daycareInv, pay] = await Promise.all([
     prisma.foodInvoice.count({ where: { studentId } }),
+    prisma.daycareInvoice.count({ where: { studentId } }),
     prisma.payment.count({ where: { studentId } }),
   ]);
-  if (inv > 0 || pay > 0) throw new AppError("STUDENT_HAS_RECORDS", mn.errors.studentHasRecords);
+  if (inv > 0 || daycareInv > 0 || pay > 0) throw new AppError("STUDENT_HAS_RECORDS", mn.errors.studentHasRecords);
   await prisma.student.delete({ where: { id: studentId } });
 }
 

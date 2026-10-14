@@ -5,7 +5,7 @@ import { parse } from "@/lib/validate";
 import { isFutureMonth } from "@/lib/dates";
 import { countPresentDays, invoiceAmount } from "@/lib/billing";
 import { holidayDates } from "@/services/holidays";
-import { getMonthAttendance, isMonthClosed } from "@/services/attendance";
+import { getMonthAttendance, getMonthDaycare, isMonthClosed } from "@/services/attendance";
 import { AppError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import type { Actor } from "@/lib/roles";
@@ -24,9 +24,10 @@ export async function closeMonth(actor: Actor, input: unknown, now: Date = new D
   if (await isMonthClosed(v.classId, v.year, v.month)) throw new AppError("MONTH_ALREADY_CLOSED", mn.errors.monthAlreadyClosed);
 
   const klass = await prisma.class.findUniqueOrThrow({ where: { id: v.classId } });
-  const [students, rows, holidays] = await Promise.all([
+  const [students, rows, daycareRows, holidays] = await Promise.all([
     prisma.student.findMany({ where: { classId: v.classId, isActive: true }, select: { id: true } }),
     getMonthAttendance(v.classId, v.year, v.month),
+    getMonthDaycare(v.classId, v.year, v.month),
     holidayDates(klass.schoolYearId),
   ]);
 
@@ -47,6 +48,20 @@ export async function closeMonth(actor: Actor, input: unknown, now: Date = new D
           amount: invoiceAmount(daysPresent, klass.dailyFoodRate),
         },
       });
+      const daycareDays = countPresentDays(daycareRows.filter((r) => r.studentId === s.id).map((r) => ({ date: r.date, status: "PRESENT" })), v.year, v.month, holidays);
+      if (daycareDays > 0) {
+        await tx.daycareInvoice.create({
+          data: {
+            studentId: s.id,
+            monthCloseId: close.id,
+            year: v.year,
+            month: v.month,
+            daysPresent: daycareDays,
+            rate: klass.dailyDaycareRate,
+            amount: invoiceAmount(daycareDays, klass.dailyDaycareRate),
+          },
+        });
+      }
     }
   });
   return { invoices: students.length };
@@ -60,11 +75,12 @@ export async function reopenMonth(actor: Actor, input: unknown): Promise<void> {
   });
   if (!close) throw new AppError("MONTH_NOT_CLOSED", mn.errors.monthNotClosed);
   const later = await prisma.payment.count({
-    where: { kind: "FOOD", deletedAt: null, createdAt: { gt: close.closedAt }, student: { classId: v.classId } },
+    where: { kind: { in: ["FOOD", "DAYCARE"] }, deletedAt: null, createdAt: { gt: close.closedAt }, student: { classId: v.classId } },
   });
   if (later > 0) throw new AppError("REOPEN_BLOCKED", mn.errors.reopenBlocked);
   await prisma.$transaction([
     prisma.foodInvoice.deleteMany({ where: { monthCloseId: close.id } }),
+    prisma.daycareInvoice.deleteMany({ where: { monthCloseId: close.id } }),
     prisma.monthClose.delete({ where: { id: close.id } }),
   ]);
 }

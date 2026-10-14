@@ -60,6 +60,7 @@ model Class {
   teacherId        String?
   teacher          User?      @relation("ClassTeacher", fields: [teacherId], references: [id])
   dailyFoodRate    Int
+  dailyDaycareRate Int        @default(27000)
   annualFundAmount Int
 
   students    Student[]
@@ -78,10 +79,12 @@ model Student {
   name     String
   isActive Boolean @default(true)
 
-  parents    ParentStudent[]
-  attendance Attendance[]
-  invoices   FoodInvoice[]
-  payments   Payment[]
+  parents         ParentStudent[]
+  attendance      Attendance[]
+  daycareDays     DaycareAttendance[]
+  invoices        FoodInvoice[]
+  daycareInvoices DaycareInvoice[]
+  payments        Payment[]
 }
 
 model ParentStudent {
@@ -103,6 +106,16 @@ model Attendance {
   @@unique([studentId, date])
 }
 
+// A day the student stayed for Өдөр өнжүүлэх; billed at the class's dailyDaycareRate. Marked separately from class attendance.
+model DaycareAttendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime
+
+  @@unique([studentId, date])
+}
+
 model MonthClose {
   id         String   @id @default(cuid())
   classId    String
@@ -113,12 +126,29 @@ model MonthClose {
   closedById String
   closedBy   User     @relation(fields: [closedById], references: [id])
 
-  invoices FoodInvoice[]
+  invoices        FoodInvoice[]
+  daycareInvoices DaycareInvoice[]
 
   @@unique([classId, year, month])
 }
 
 model FoodInvoice {
+  id           String     @id @default(cuid())
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  monthCloseId String
+  monthClose   MonthClose @relation(fields: [monthCloseId], references: [id], onDelete: Cascade)
+  year         Int
+  month        Int
+  daysPresent  Int
+  rate         Int
+  amount       Int
+  createdAt    DateTime   @default(now())
+
+  @@unique([studentId, year, month])
+}
+
+model DaycareInvoice {
   id           String     @id @default(cuid())
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id])

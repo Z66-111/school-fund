@@ -12,13 +12,16 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const t = todayDate();
   const year = Number(sp.year ?? t.getUTCFullYear());
   const month = Number(sp.month ?? t.getUTCMonth() + 1);
-  const [fund, food] = await Promise.all([classFundReport(actor, id), monthlyFoodReport(actor, id, year, month)]);
+  const [fund, food, daycare] = await Promise.all([classFundReport(actor, id), monthlyFoodReport(actor, id, year, month), monthlyFoodReport(actor, id, year, month, "DAYCARE")]);
   return (
     <div className="flex flex-col gap-10">
       <FundReportView r={fund} classId={id} />
       <div>
         <MonthPicker year={year} month={month} />
-        <FoodReportView r={food} classId={id} />
+        <div className="flex flex-col gap-8">
+          <FoodReportView r={food} classId={id} />
+          <FoodReportView r={daycare} classId={id} />
+        </div>
       </div>
     </div>
   );

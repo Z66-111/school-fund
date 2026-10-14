@@ -7,7 +7,7 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import type { Actor } from "@/lib/roles";
 
-const ratesSchema = z.object({ dailyFoodRate: moneySchema, annualFundAmount: moneySchema });
+const ratesSchema = z.object({ dailyFoodRate: moneySchema, dailyDaycareRate: moneySchema.optional(), annualFundAmount: moneySchema });
 const classSchema = ratesSchema.extend({
   name: z.string().trim().min(1, mn.errors.required),
   schoolYearId: z.string().min(1),

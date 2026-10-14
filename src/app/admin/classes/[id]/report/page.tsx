@@ -15,14 +15,17 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const t = todayDate();
   const year = Number(sp.year ?? t.getUTCFullYear());
   const month = Number(sp.month ?? t.getUTCMonth() + 1);
-  const [c, fund, food] = await Promise.all([getClass(id), classFundReport(actor, id), monthlyFoodReport(actor, id, year, month)]);
+  const [c, fund, food, daycare] = await Promise.all([getClass(id), classFundReport(actor, id), monthlyFoodReport(actor, id, year, month), monthlyFoodReport(actor, id, year, month, "DAYCARE")]);
   return (
     <div className="flex flex-col gap-10">
       <PageHeader title={`${mn.nav.report}: ${mn.common.class} ${c.name}`} subtitle={c.schoolYear.name} />
       <FundReportView r={fund} classId={id} />
       <div>
         <MonthPicker year={year} month={month} />
-        <FoodReportView r={food} classId={id} />
+        <div className="flex flex-col gap-8">
+          <FoodReportView r={food} classId={id} />
+          <FoodReportView r={daycare} classId={id} />
+        </div>
       </div>
     </div>
   );

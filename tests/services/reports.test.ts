@@ -53,5 +53,15 @@ describe("monthlyFoodReport", () => {
     expect((await monthlyFoodReport(actorOf(acc), c.id, 2026, 11)).closed).toBe(false);
     const p = await f.user("PARENT");
     await expect(monthlyFoodReport(actorOf(p), c.id, 2026, 10)).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });  it("DAYCARE kind reads daycare invoices and daycare payments only", async () => {
+    const { c, s1, pay, actor, t } = await setup();
+    const oct = await prisma.monthClose.create({ data: { classId: c.id, year: 2026, month: 10, closedById: t.id } });
+    await prisma.foodInvoice.create({ data: { studentId: s1.id, monthCloseId: oct.id, year: 2026, month: 10, daysPresent: 2, rate: 3000, amount: 6000 } });
+    await prisma.daycareInvoice.create({ data: { studentId: s1.id, monthCloseId: oct.id, year: 2026, month: 10, daysPresent: 2, rate: 27000, amount: 54000 } });
+    await pay(s1.id, "FOOD", 6000);
+    await pay(s1.id, "DAYCARE", 20000);
+    const r = await monthlyFoodReport(actor, c.id, 2026, 10, "DAYCARE");
+    expect(r.kind).toBe("DAYCARE");
+    expect(r.rows.map((x) => [x.amount, x.paid, x.outstanding])).toEqual([[54000, 20000, 34000]]);
   });
 });

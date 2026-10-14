@@ -18,7 +18,7 @@ export default async function ParentHome() {
   const [dues, schedules] = await Promise.all([
     Promise.all(children.map(async (s) => {
       const b = await studentBalances(actor, s.id);
-      return b.foodOutstanding + b.fundDue;
+      return b.foodOutstanding + b.daycareOutstanding + b.fundDue;
     })),
     Promise.all(classes.map((c) => getSchedule(actor, c.id))),
   ]);

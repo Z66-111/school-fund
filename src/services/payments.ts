@@ -4,12 +4,12 @@ import { requireRole, assertStudentAccess } from "@/lib/authz";
 import { parse } from "@/lib/validate";
 import { moneySchema } from "@/lib/money";
 import { parseDateOnly, isFuture } from "@/lib/dates";
-import { allocateFoodPayments, foodOutstanding, foodCredit } from "@/lib/billing";
+import { allocateFoodPayments, foodOutstanding, foodCredit, type Charge } from "@/lib/billing";
+import { chargesFor } from "@/services/charges";
 import { dateStringSchema } from "@/services/school-years";
 import { AppError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import { PAYMENT_KINDS, type Actor } from "@/lib/roles";
-import type { FoodInvoice } from "@prisma/client";
 
 const registerSchema = z.object({
   studentId: z.string().min(1),
@@ -63,24 +63,32 @@ export type StudentBalances = {
   annualFundAmount: number;
   fundPaid: number;
   fundDue: number;
-  invoices: (FoodInvoice & { paid: number; outstanding: number })[];
+  invoices: (Charge & { paid: number; outstanding: number })[];
   foodInvoiced: number;
   foodPaid: number;
   foodOutstanding: number;
   foodCredit: number;
+  daycareInvoices: (Charge & { paid: number; outstanding: number })[];
+  daycareInvoiced: number;
+  daycarePaid: number;
+  daycareOutstanding: number;
+  daycareCredit: number;
 };
 
 export async function studentBalances(actor: Actor, studentId: string): Promise<StudentBalances> {
   await assertStudentAccess(actor, studentId);
   const student = await prisma.student.findUniqueOrThrow({ where: { id: studentId }, include: { class: true } });
-  const [invoices, sums] = await Promise.all([
-    prisma.foodInvoice.findMany({ where: { studentId } }),
+  const [charges, sums] = await Promise.all([
+    chargesFor([studentId]),
     prisma.payment.groupBy({ by: ["kind"], where: { studentId, deletedAt: null }, _sum: { amount: true } }),
   ]);
+  const { food: invoices, daycare: daycareInvoices } = charges.get(studentId)!;
   const paidOf = (kind: string) => sums.find((s) => s.kind === kind)?._sum.amount ?? 0;
   const foodPaid = paidOf("FOOD");
   const fundPaid = paidOf("ANNUAL_FUND");
   const foodInvoiced = invoices.reduce((a, i) => a + i.amount, 0);
+  const daycarePaid = paidOf("DAYCARE");
+  const daycareInvoiced = daycareInvoices.reduce((a, i) => a + i.amount, 0);
   return {
     annualFundAmount: student.class.annualFundAmount,
     fundPaid,
@@ -90,6 +98,11 @@ export async function studentBalances(actor: Actor, studentId: string): Promise<
     foodPaid,
     foodOutstanding: foodOutstanding(foodInvoiced, foodPaid),
     foodCredit: foodCredit(foodInvoiced, foodPaid),
+    daycareInvoices: allocateFoodPayments(daycareInvoices, daycarePaid),
+    daycareInvoiced,
+    daycarePaid,
+    daycareOutstanding: foodOutstanding(daycareInvoiced, daycarePaid),
+    daycareCredit: foodCredit(daycareInvoiced, daycarePaid),
   };
 }
 
@@ -102,6 +115,7 @@ export type OutstandingRow = {
   isActiveYear: boolean;
   isActive: boolean;
   foodDue: number;
+  daycareDue: number;
   fundDue: number;
 };
 
@@ -115,18 +129,21 @@ export async function outstandingTable(actor: Actor, classId?: string): Promise<
     orderBy: [{ class: { schoolYear: { startDate: "desc" } } }, { class: { name: "asc" } }, { name: "asc" }],
   });
   const ids = students.map((s) => s.id);
-  const [inv, pay] = await Promise.all([
-    prisma.foodInvoice.groupBy({ by: ["studentId"], where: { studentId: { in: ids } }, _sum: { amount: true } }),
+  const [charges, pay] = await Promise.all([
+    chargesFor(ids),
     prisma.payment.groupBy({ by: ["studentId", "kind"], where: { studentId: { in: ids }, deletedAt: null }, _sum: { amount: true } }),
   ]);
-  const invoiced = new Map(inv.map((r) => [r.studentId, r._sum.amount ?? 0]));
+  const sum = (cs: Charge[]) => cs.reduce((a, c) => a + c.amount, 0);
+  const invoiced = new Map(ids.map((id) => [id, sum(charges.get(id)!.food)]));
+  const daycareInvoiced = new Map(ids.map((id) => [id, sum(charges.get(id)!.daycare)]));
   const paid = new Map(pay.map((r) => [`${r.studentId}|${r.kind}`, r._sum.amount ?? 0]));
   const rows: OutstandingRow[] = [];
   for (const s of students) {
     const foodDue = foodOutstanding(invoiced.get(s.id) ?? 0, paid.get(`${s.id}|FOOD`) ?? 0);
+    const daycareDue = foodOutstanding(daycareInvoiced.get(s.id) ?? 0, paid.get(`${s.id}|DAYCARE`) ?? 0);
     const fundDue = s.isActive ? Math.max(0, s.class.annualFundAmount - (paid.get(`${s.id}|ANNUAL_FUND`) ?? 0)) : 0;
     const isActiveYear = s.class.schoolYear.isActive;
-    if (!((s.isActive && isActiveYear) || foodDue > 0 || (s.isActive && fundDue > 0))) continue;
+    if (!((s.isActive && isActiveYear) || foodDue > 0 || daycareDue > 0 || (s.isActive && fundDue > 0))) continue;
     rows.push({
       studentId: s.id,
       studentName: s.name,
@@ -136,6 +153,7 @@ export async function outstandingTable(actor: Actor, classId?: string): Promise<
       isActiveYear,
       isActive: s.isActive,
       foodDue,
+      daycareDue,
       fundDue,
     });
   }

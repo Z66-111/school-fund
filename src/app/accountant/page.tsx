@@ -17,6 +17,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   const classes = await listClasses(year.id);
   const rows = await outstandingTable(actor, classId || undefined);
   const food = rows.reduce((a, r) => a + r.foodDue, 0);
+  const daycare = rows.reduce((a, r) => a + r.daycareDue, 0);
   const fund = rows.reduce((a, r) => a + r.fundDue, 0);
   return (
     <div>
@@ -29,25 +30,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
           <button className={buttonClass("secondary", "sm")}>{mn.common.apply}</button>
         </form>
       </PageHeader>
-      <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
         <StatTile label={mn.common.student} value={String(rows.length)} money={false} tone="neutral" />
         <StatTile label={mn.payment.foodDue} value={food} tone={food > 0 ? "due" : "good"} />
+        <StatTile label={mn.payment.daycareDue} value={daycare} tone={daycare > 0 ? "due" : "good"} />
         <StatTile label={mn.payment.fundDue} value={fund} tone={fund > 0 ? "due" : "good"} />
       </div>
       <Table>
-        <thead><tr><th>{mn.common.class}</th><th>{mn.common.student}</th><th className="num">{mn.payment.foodDue}</th><th className="num">{mn.payment.fundDue}</th></tr></thead>
+        <thead><tr><th>{mn.common.class}</th><th>{mn.common.student}</th><th className="num">{mn.payment.foodDue}</th><th className="num">{mn.payment.daycareDue}</th><th className="num">{mn.payment.fundDue}</th></tr></thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.studentId} className={r.foodDue + r.fundDue > 0 ? "due" : ""}>
+            <tr key={r.studentId} className={r.foodDue + r.daycareDue + r.fundDue > 0 ? "due" : ""}>
               <td>{r.className}{!r.isActiveYear && <span className="text-ink-muted"> ({r.schoolYearName})</span>}</td>
               <td><Link href={`/accountant/students/${r.studentId}`} className="link font-medium">{r.studentName}</Link>{!r.isActive && <span className="text-ink-muted"> ({mn.common.inactive})</span>}</td>
               <td className="num"><Money v={r.foodDue} /></td>
+              <td className="num"><Money v={r.daycareDue} /></td>
               <td className="num"><Money v={r.fundDue} /></td>
             </tr>
           ))}
-          {rows.length === 0 && <tr><td colSpan={4} className="text-ink-muted">{mn.common.empty}</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={5} className="text-ink-muted">{mn.common.empty}</td></tr>}
         </tbody>
-        <tfoot><tr><td colSpan={2}>{mn.common.total}</td><td className="num"><Money v={food} /></td><td className="num"><Money v={fund} /></td></tr></tfoot>
+        <tfoot><tr><td colSpan={2}>{mn.common.total}</td><td className="num"><Money v={food} /></td><td className="num"><Money v={daycare} /></td><td className="num"><Money v={fund} /></td></tr></tfoot>
       </Table>
     </div>
   );

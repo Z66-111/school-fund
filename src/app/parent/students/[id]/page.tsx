@@ -27,12 +27,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const [b, children] = await Promise.all([studentBalances(actor, id), listChildren(actor.userId)]);
   // A parent with one child is redirected here from /parent, so this page doubles as their home and carries the schedule.
   const schedule = children.length === 1 ? await getSchedule(actor, student.classId) : null;
-  const total = b.foodOutstanding + b.fundDue;
+  const total = b.foodOutstanding + b.daycareOutstanding + b.fundDue;
   const items = [
     ...b.invoices
       .filter((i) => i.outstanding > 0)
-      .map((i) => ({ key: i.id, label: `${mn.payment.FOOD}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding })),
-    ...(b.fundDue > 0 ? [{ key: "fund", label: mn.payment.ANNUAL_FUND, amount: b.fundDue }] : []),
+      .map((i) => ({ key: i.id, label: `${mn.payment.FOOD}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, provisional: i.provisional })),
+    ...b.daycareInvoices
+      .filter((i) => i.outstanding > 0)
+      .map((i) => ({ key: i.id, label: `${mn.payment.DAYCARE}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, provisional: i.provisional })),
+    ...(b.fundDue > 0 ? [{ key: "fund", label: mn.payment.ANNUAL_FUND, amount: b.fundDue, provisional: false }] : []),
   ];
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -43,12 +46,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <div className="text-sm text-ink-muted">{mn.parent.dueNow}</div>
         <div className={`num text-4xl font-semibold leading-tight ${total > 0 ? "text-due" : "text-present"}`}><Money v={total} /></div>
         {total === 0 && <p className="mt-1 text-sm text-present">{mn.parent.nothingDue}</p>}
-        {b.foodCredit > 0 && (
-          <p className="mt-1 text-sm text-ink-muted">{mn.invoice.credit}: <Money v={b.foodCredit} /></p>
+        {b.foodCredit + b.daycareCredit > 0 && (
+          <p className="mt-1 text-sm text-ink-muted">{mn.invoice.credit}: <Money v={b.foodCredit + b.daycareCredit} /></p>
         )}
       </section>
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">
         <StatTile label={mn.payment.foodDue} value={b.foodOutstanding} tone={b.foodOutstanding > 0 ? "due" : "good"} />
+        <StatTile label={mn.payment.daycareDue} value={b.daycareOutstanding} tone={b.daycareOutstanding > 0 ? "due" : "good"} />
         <StatTile label={mn.payment.fundDue} value={b.fundDue} tone={b.fundDue > 0 ? "due" : "good"} />
       </div>
       {items.length > 0 && (
@@ -57,7 +61,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <ul className="divide-y divide-rule rounded-md border border-rule bg-surface">
             {items.map((it) => (
               <li key={it.key} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span>{it.label}</span>
+                <span>
+                  {it.label}
+                  {it.provisional && <span className="block text-xs text-ink-muted">{mn.invoice.runningNote}</span>}
+                </span>
                 <Money v={it.amount} className="font-semibold" />
               </li>
             ))}

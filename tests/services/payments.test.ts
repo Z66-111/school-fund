@@ -37,6 +37,16 @@ describe("studentBalances", () => {
     expect(b).toMatchObject({ foodInvoiced: 45000, foodPaid: 20000, foodOutstanding: 25000, foodCredit: 0, fundPaid: 30000, fundDue: 20000, annualFundAmount: 50000 });
     expect(b.invoices[0]).toMatchObject({ paid: 20000, outstanding: 25000 });
   });
+  it("tracks daycare invoices and payments separately from food", async () => {
+    const { s, actor } = await setup();
+    const close = await prisma.monthClose.findFirstOrThrow();
+    await prisma.daycareInvoice.create({ data: { studentId: s.id, monthCloseId: close.id, year: 2026, month: 9, daysPresent: 2, rate: 27000, amount: 54000 } });
+    await registerPayment(actor, { studentId: s.id, kind: "DAYCARE", amount: "27000", paidAt: "2026-10-01" }, NOW);
+    const b = await studentBalances(actor, s.id);
+    expect(b).toMatchObject({ daycareInvoiced: 54000, daycarePaid: 27000, daycareOutstanding: 27000, foodOutstanding: 45000 });
+    expect(b.daycareInvoices[0]).toMatchObject({ paid: 27000, outstanding: 27000 });
+    expect((await outstandingTable(actor)).find((r) => r.studentId === s.id)).toMatchObject({ foodDue: 45000, daycareDue: 27000 });
+  });
   it("overpayment shows credit and zero outstanding", async () => {
     const { s, actor } = await setup();
     await registerPayment(actor, { studentId: s.id, kind: "FOOD", amount: "50000", paidAt: "2026-10-01" }, NOW);

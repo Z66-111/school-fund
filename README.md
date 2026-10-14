@@ -1,4 +1,4 @@
-# Сургуулийн сан (School Fund)
+# Сургуулийн хуримтлал (School Fund)
 
 Teachers mark attendance, the app bills parents monthly for food by days present,
 an accountant registers bank payments, and each class tracks an annual fund with a

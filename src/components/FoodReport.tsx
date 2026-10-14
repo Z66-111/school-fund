@@ -10,10 +10,10 @@ export function FoodReportView({ r, classId }: { r: FoodReport; classId: string 
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2>{mn.report.food} <span className="font-normal text-ink-muted">{r.className}, {r.year} {mn.months[r.month - 1]}</span></h2>
-          {!r.closed && <Badge tone="warn">{mn.errors.monthNotClosed}</Badge>}
+          <h2>{r.kind === "DAYCARE" ? mn.report.daycare : mn.report.food} <span className="font-normal text-ink-muted">{r.className}, {r.year} {mn.months[r.month - 1]}</span></h2>
+          {!r.closed && <Badge tone="warn">{mn.invoice.runningNote}</Badge>}
         </div>
-        <a href={`/api/reports/food?classId=${classId}&year=${r.year}&month=${r.month}`} className={buttonClass("secondary", "sm")}>{mn.common.downloadCsv}</a>
+        <a href={`/api/reports/food?classId=${classId}&year=${r.year}&month=${r.month}&kind=${r.kind}`} className={buttonClass("secondary", "sm")}>{mn.common.downloadCsv}</a>
       </div>
       <Table>
         <thead><tr><th>{mn.common.student}</th><th className="ctr">{mn.attendance.daysPresent}</th><th className="num">{mn.invoice.amount}</th><th className="num">{mn.invoice.paid}</th><th className="num">{mn.invoice.outstanding}</th></tr></thead>
