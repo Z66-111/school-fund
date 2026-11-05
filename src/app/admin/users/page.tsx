@@ -25,7 +25,7 @@ export default async function Page() {
                 <tr key={u.id}>
                   <td className="font-medium">{u.name}</td>
                   <td className="text-ink-muted">{u.email}</td>
-                  <td><Badge tone={u.role === "ADMIN" ? "teal" : "neutral"}>{mn.roles[u.role as keyof typeof mn.roles]}</Badge></td>
+                  <td><Badge tone={u.role === "ADMIN" ? "brand" : "neutral"}>{mn.roles[u.role as keyof typeof mn.roles]}</Badge></td>
                   <td>
                     <ActionForm action={resetPasswordAction} submitLabel={mn.user.resetPassword} className="flex items-center gap-2" variant="secondary" size="sm">
                       <input type="hidden" name="userId" value={u.id} />

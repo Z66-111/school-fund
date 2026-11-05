@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { mn } from "@/lib/i18n/mn";
 import { logoutAction } from "@/actions/auth";
 import { buttonClass } from "@/components/ui/Button";
+import { Brand } from "@/components/ui/Brand";
 import type { Role } from "@/lib/roles";
 
 const links: Record<Role, { href: string; label: string }[]> = {
@@ -39,8 +40,8 @@ export function Nav({ role }: { role: Role }) {
   return (
     <nav className="border-b border-rule bg-surface">
       <div className="mx-auto flex max-w-6xl items-center gap-5 px-5">
-        <Link href="/" className="py-3 text-[15px] font-semibold tracking-tight text-teal">
-          {mn.app}
+        <Link href="/" className="py-2.5" aria-label={mn.brand}>
+          <Brand />
         </Link>
         <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto text-sm">
           {items.map((l) => {
@@ -50,14 +51,14 @@ export function Nav({ role }: { role: Role }) {
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={`-mb-px whitespace-nowrap border-b-2 px-2 py-3 ${active ? "border-teal text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}
+                className={`-mb-px whitespace-nowrap border-b-2 px-2 py-3 ${active ? "border-brand text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}
               >
                 {l.label}
               </Link>
             );
           })}
         </div>
-        <span className="hidden text-xs text-ink-muted sm:inline">{mn.roles[role]}</span>
+        <span className="hidden rounded-sm bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand sm:inline">{mn.roles[role]}</span>
         <form action={logoutAction}>
           <button className={buttonClass("quiet", "sm")}>{mn.nav.logout}</button>
         </form>

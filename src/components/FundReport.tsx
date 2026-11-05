@@ -14,7 +14,7 @@ export function FundReportView({ r, classId }: { r: FundReport; classId: string 
         <a href={`/api/reports/fund?classId=${classId}`} className={buttonClass("secondary", "sm")}>{mn.common.downloadCsv}</a>
       </div>
       <div className="grid grid-cols-3 gap-6">
-        <StatTile label={mn.report.collected} value={r.collected} tone="teal" />
+        <StatTile label={mn.report.collected} value={r.collected} tone="brand" />
         <StatTile label={mn.report.spent} value={r.spent} tone="neutral" />
         <StatTile label={mn.report.balance} value={r.balance} tone={r.balance < 0 ? "due" : "good"} />
       </div>

@@ -1,5 +1,6 @@
 export const mn = {
   app: "Сургуулийн хуримтлал",
+  brand: "fundz.mn",
   nav: {
     logout: "Гарах",
     admin: "Админ",

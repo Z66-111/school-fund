@@ -71,12 +71,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </ul>
         </section>
       )}
-      <Link href={`/parent/students/${id}/detail`} className="panel flex items-center justify-between gap-3 hover:border-teal">
+      <Link href={`/parent/students/${id}/detail`} className="panel flex items-center justify-between gap-3 hover:border-brand">
         <span>
           <span className="block font-semibold">{mn.parent.viewDetail}</span>
           <span className="block text-sm text-ink-muted">{mn.parent.detailHint}</span>
         </span>
-        <span aria-hidden className="text-xl text-teal">›</span>
+        <span aria-hidden className="text-xl text-brand">›</span>
       </Link>
       {schedule && (
         <section className="flex flex-col gap-3">

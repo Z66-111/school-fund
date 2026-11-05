@@ -112,7 +112,7 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
     s === "STAYED" ? mn.attendance.daycareMark : s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
   const tone = (s: Status) =>
     s === "STAYED"
-      ? "bg-teal-soft text-teal"
+      ? "bg-brand-soft text-brand"
       : s === "PRESENT"
       ? "bg-present-soft text-present"
       : s === "ABSENT"
@@ -163,7 +163,7 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
                       onClick={() => setDay(d.iso, dayAllPresent(d.iso) ? null : all)}
                       title={dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}
                       aria-label={`${d.iso}: ${dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}`}
-                      className={`w-full rounded-sm py-0.5 hover:bg-teal-soft hover:text-teal ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
+                      className={`w-full rounded-sm py-0.5 hover:bg-brand-soft hover:text-brand ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
                     >
                       <span className="num block text-[13px] text-ink">{d.day}</span>
                       <span className="block text-[10px]">{mn.weekdaysShort[d.weekday]}</span>
@@ -199,8 +199,8 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
                           onClick={() => click(s.id, d.iso)}
                           aria-label={`${s.name} ${d.iso}`}
                           className={`h-7 w-7 rounded-sm text-[12px] font-semibold transition-colors ${tone(st)} ${
-                            disabled ? "cursor-not-allowed" : "hover:ring-1 hover:ring-teal"
-                          } ${changed ? "outline-2 outline-offset-1 outline-dashed outline-teal" : ""} ${d.future ? "opacity-40" : ""}`}
+                            disabled ? "cursor-not-allowed" : "hover:ring-1 hover:ring-brand"
+                          } ${changed ? "outline-2 outline-offset-1 outline-dashed outline-brand" : ""} ${d.future ? "opacity-40" : ""}`}
                         >
                           {label(st)}
                         </button>
@@ -220,7 +220,7 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-ink-muted">
         <span>{mn.attendance.legend}:</span>
         {mode === "daycare" ? (
-          <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-teal-soft ring-1 ring-teal/40" />{mn.attendance.daycareStayed}</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-brand-soft ring-1 ring-brand/40" />{mn.attendance.daycareStayed}</span>
         ) : (
           <>
             <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-present-soft ring-1 ring-present/40" />{mn.attendance.present}</span>

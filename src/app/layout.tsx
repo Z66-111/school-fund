@@ -10,7 +10,10 @@ const plex = IBM_Plex_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = { title: mn.app };
+export const metadata: Metadata = {
+  title: { default: `${mn.brand} · ${mn.app}`, template: `%s · ${mn.brand}` },
+  description: mn.login.tagline,
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

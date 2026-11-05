@@ -35,7 +35,7 @@ export default async function ParentHome() {
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {children.map((s, i) => (
             <li key={s.id}>
-              <Link href={`/parent/students/${s.id}`} className="panel flex items-end justify-between gap-3 hover:border-teal">
+              <Link href={`/parent/students/${s.id}`} className="panel flex items-end justify-between gap-3 hover:border-brand">
                 <span>
                   <span className="block text-lg font-semibold">{s.name}</span>
                   <span className="block text-sm text-ink-muted">{mn.common.class} {s.class.name}</span>

@@ -43,7 +43,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const editable = isTeacher && !closed;
   const ym = `year=${year}&month=${month}`;
   const tab = (m: string, label: string, href: string) => (
-    <Link href={href} className={`rounded-sm px-3 py-1 text-sm font-medium ${mode === m ? "bg-teal text-white" : "text-ink-muted hover:text-ink"}`}>{label}</Link>
+    <Link href={href} className={`rounded-sm px-3 py-1 text-sm font-medium ${mode === m ? "bg-brand text-white" : "text-ink-muted hover:text-ink"}`}>{label}</Link>
   );
 
   return (

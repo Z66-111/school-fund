@@ -5,10 +5,10 @@ const base =
   "inline-flex items-center justify-center gap-1 rounded-sm font-medium whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const sizes: Record<ButtonSize, string> = { sm: "px-2.5 py-1 text-[13px]", md: "px-3.5 py-1.5 text-sm" };
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-teal text-white hover:bg-teal-deep",
-  secondary: "border border-rule-strong bg-surface text-ink hover:border-teal hover:text-teal",
+  primary: "bg-brand text-white hover:bg-brand-deep",
+  secondary: "border border-rule-strong bg-surface text-ink hover:border-brand hover:text-brand",
   danger: "border border-transparent text-absent hover:bg-absent-soft",
-  quiet: "text-teal hover:bg-teal-soft",
+  quiet: "text-brand hover:bg-brand-soft",
 };
 
 export function buttonClass(variant: ButtonVariant = "primary", size: ButtonSize = "md") {

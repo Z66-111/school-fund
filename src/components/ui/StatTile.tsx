@@ -1,10 +1,10 @@
 import { Money } from "@/components/Money";
 
-type Tone = "teal" | "due" | "good" | "neutral";
-const rule: Record<Tone, string> = { teal: "border-teal", due: "border-due", good: "border-present", neutral: "border-rule-strong" };
+type Tone = "brand" | "due" | "good" | "neutral";
+const rule: Record<Tone, string> = { brand: "border-brand", due: "border-due", good: "border-present", neutral: "border-rule-strong" };
 
-/** A figure with a teal left rule, the ledger's margin line in miniature. */
-export function StatTile({ label, value, tone = "teal", money = true }: { label: string; value: number | string; tone?: Tone; money?: boolean }) {
+/** A figure with a brand left rule, the ledger's margin line in miniature. */
+export function StatTile({ label, value, tone = "brand", money = true }: { label: string; value: number | string; tone?: Tone; money?: boolean }) {
   return (
     <div className={`border-l-2 pl-3 ${rule[tone]}`}>
       <div className="text-sm text-ink-muted">{label}</div>

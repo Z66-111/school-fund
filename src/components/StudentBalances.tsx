@@ -18,7 +18,7 @@ export function StudentBalancesView({ b, payments, tiles = true }: { b: StudentB
         <StatTile label={mn.payment.fundDue} value={b.fundDue} tone={b.fundDue > 0 ? "due" : "good"} />
         <StatTile label={`${mn.payment.ANNUAL_FUND}, ${mn.invoice.paid.toLowerCase()}`} value={b.fundPaid} tone="neutral" />
         {b.foodCredit > 0
-          ? <StatTile label={mn.invoice.credit} value={b.foodCredit} tone="teal" />
+          ? <StatTile label={mn.invoice.credit} value={b.foodCredit} tone="brand" />
           : <StatTile label={mn.class.annualFundAmount} value={b.annualFundAmount} tone="neutral" />}
       </div>}
       <div className="grid gap-6 xl:grid-cols-2">
