@@ -61,6 +61,32 @@ The app runs on Vercel; the database is Turso (hosted SQLite). When
 4. **Before sharing the link**, log in as admin and change every `changeme`
    password (Admin → Хэрэглэгчид).
 
+## Alternative: cPanel (Setup Node.js App)
+
+Needs a host with the **Setup Node.js App** icon (CloudLinux Node.js
+Selector + Passenger); plain shared hosting cannot run Next.js. The database
+stays on Turso, so no data move is needed.
+
+1. **Build locally** (`npm run build`; shared hosts run out of memory
+   building). Zip the project without `node_modules`, `.git`, `test-results`,
+   `e2e`, `tests`; keep `.next`, `src`, `public`, `prisma`, `server.js`,
+   `package.json`, `package-lock.json`, `next.config.ts`. Upload and extract
+   to a folder outside `public_html`, e.g. `/home/<user>/school-fund`.
+2. **Create the app**: Node.js 20.9+ (22 if offered), mode *Development* for
+   now, application root `school-fund`, startup file `server.js`, URL = your
+   domain.
+3. **Environment variables**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
+   `DATABASE_URL=file:./unused.db`.
+4. **Run NPM Install** while still in Development mode — `postinstall` runs
+   `prisma generate`, and the Prisma CLI is a dev dependency, so Production
+   mode would skip it and the app fails to start.
+5. Switch mode to **Production**, save, **Restart**. Passenger writes the
+   `.htaccess` itself.
+
+On every code change: rebuild locally, re-upload `.next` (and changed
+sources), restart the app. If `prisma generate` fails with an engine or glibc
+error, the host's Linux is too old for Prisma's native engine.
+
 **Later schema changes**: generate the SQL from the previous schema and apply it
 with the Turso CLI, e.g.
 
