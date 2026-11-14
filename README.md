@@ -146,10 +146,10 @@ Variables (masked and protected):
 
 | Variable | Value |
 |---|---|
-| `CPANEL_FTP_HOST` | FTP host of the cPanel account, e.g. `ftp.angisan.mn` |
+| `CPANEL_FTP_HOST` | FTP host name only, e.g. `ftp.angisan.mn` or the server's own name. Not the cPanel web address (`https://…:2083`) |
 | `CPANEL_FTP_USER` | FTP user |
 | `CPANEL_FTP_PASSWORD` | FTP password |
-| `CPANEL_APP_DIR` | The app's folder as that FTP user sees it, e.g. `/angisan` |
+| `CPANEL_APP_DIR` | The app's folder as that FTP user sees it, e.g. `/angisan` for `/home/<user>/angisan`. It must already exist |
 | `CPANEL_FTP_VERIFY_CERT` | Optional. `no` only if the host's FTP certificate does not match its name |
 
 The first deployment is still done by hand (create the Node.js app, set its

@@ -1,7 +1,7 @@
 # Pipeline: check (lint, types, unit tests, browser tests) -> build (cPanel package) -> deploy.
 #
 # Deploying needs these CI/CD variables (Settings -> CI/CD -> Variables, masked + protected):
-#   CPANEL_FTP_HOST      FTP host of the cPanel account, e.g. ftp.angisan.mn
+#   CPANEL_FTP_HOST      FTP host name only, e.g. ftp.angisan.mn or the server's own name (not the cPanel web address)
 #   CPANEL_FTP_USER      FTP user
 #   CPANEL_FTP_PASSWORD  FTP password
 #   CPANEL_APP_DIR       application root on the host as that FTP user sees it, e.g. /angisan
@@ -88,14 +88,20 @@ deploy:
     - date -u +"%Y-%m-%dT%H:%M:%SZ $CI_COMMIT_SHORT_SHA" > restart.txt
     # Sources first, then the build (deleting chunks that no longer exist), then restart.txt:
     # Passenger restarts the app when tmp/restart.txt changes.
+    # CPANEL_FTP_HOST must be a bare host name. A pasted address such as https://example.mn:2083/
+    # would make lftp speak HTTP to the cPanel login page, so cut it down to the host and force FTP.
     - |
-      lftp --env-password -u "$CPANEL_FTP_USER" "$CPANEL_FTP_HOST" <<EOF
+      host="${CPANEL_FTP_HOST#*://}"; host="${host%%/*}"; host="${host%%:*}"
+      if [ "$host" != "$CPANEL_FTP_HOST" ]; then echo "CPANEL_FTP_HOST should be only the FTP host name (no https://, port or path). Using: $host"; fi
+      echo "Uploading to the folder in CPANEL_APP_DIR, which must already exist on the host (it is the Node.js app's root, as the FTP user sees it)."
+      lftp --env-password -u "$CPANEL_FTP_USER" "ftp://$host" <<EOF
       set cmd:fail-exit yes
       set ftp:ssl-force yes
       set ftp:ssl-protect-data yes
       set ssl:verify-certificate ${CPANEL_FTP_VERIFY_CERT:-yes}
       set net:max-retries 3
       set net:timeout 30
+      cd "$CPANEL_APP_DIR"
       mirror --reverse --parallel=4 --exclude-glob .next/ package/ "$CPANEL_APP_DIR/"
       mirror --reverse --parallel=4 --delete package/.next/ "$CPANEL_APP_DIR/.next/"
       mkdir -p -f "$CPANEL_APP_DIR/tmp"
