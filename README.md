@@ -128,3 +128,33 @@ database created before this version needs the schema added by hand first:
         CONSTRAINT "DaycareSkip_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student" ("id") ON DELETE CASCADE ON UPDATE CASCADE
     );
     CREATE UNIQUE INDEX "DaycareSkip_studentId_date_key" ON "DaycareSkip"("studentId", "date");
+
+## CI/CD (GitLab)
+
+`.gitlab-ci.yml` runs on every push and merge request:
+
+1. **check** — lint, type check and unit tests (`unit`), and the browser tests (`e2e`).
+2. **build** — production build, packaged as the cPanel upload (`package/`, kept
+   as a downloadable artifact for two weeks).
+3. **deploy** — on the default branch only, after the checks pass: uploads the
+   package to the cPanel host over FTPS and restarts the app (Passenger
+   restarts when `tmp/restart.txt` changes). It keeps `node_modules` and
+   everything else already on the host.
+
+The deploy job exists only once these are set under Settings → CI/CD →
+Variables (masked and protected):
+
+| Variable | Value |
+|---|---|
+| `CPANEL_FTP_HOST` | FTP host of the cPanel account, e.g. `ftp.angisan.mn` |
+| `CPANEL_FTP_USER` | FTP user |
+| `CPANEL_FTP_PASSWORD` | FTP password |
+| `CPANEL_APP_DIR` | The app's folder as that FTP user sees it, e.g. `/angisan` |
+| `CPANEL_FTP_VERIFY_CERT` | Optional. `no` only if the host's FTP certificate does not match its name |
+
+The first deployment is still done by hand (create the Node.js app, set its
+environment variables, Run NPM Install — see the cPanel section). After that a
+push to the default branch deploys. The pipeline cannot run `npm install` on
+the host: when `package-lock.json` changes, press **Run NPM Install** for the
+app in cPanel and restart it. Database schema changes are also applied by
+hand, before the code that needs them.

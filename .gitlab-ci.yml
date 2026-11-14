@@ -1,0 +1,105 @@
+# Pipeline: check (lint, types, unit tests, browser tests) -> build (cPanel package) -> deploy.
+#
+# Deploying needs these CI/CD variables (Settings -> CI/CD -> Variables, masked + protected):
+#   CPANEL_FTP_HOST      FTP host of the cPanel account, e.g. ftp.angisan.mn
+#   CPANEL_FTP_USER      FTP user
+#   CPANEL_FTP_PASSWORD  FTP password
+#   CPANEL_APP_DIR       application root on the host as that FTP user sees it, e.g. /angisan
+#   CPANEL_FTP_VERIFY_CERT  optional; set to "no" only if the host's FTP certificate does not match its name
+# Until CPANEL_FTP_HOST is set the deploy job is simply not created.
+
+stages: [check, build, deploy]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never # the merge request pipeline already covers this push
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+variables:
+  # Prisma's schema requires the variable; tests and the build never open this file.
+  DATABASE_URL: "file:./ci.db"
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+default:
+  image: node:22-bookworm
+  interruptible: true
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+
+unit:
+  stage: check
+  script:
+    - npm ci
+    - npm run lint
+    - npx tsc --noEmit
+    - npm test
+
+e2e:
+  stage: check
+  # Keep this tag equal to the @playwright/test version in package-lock.json.
+  image: mcr.microsoft.com/playwright:v1.63.0-noble
+  script:
+    - npm ci
+    - npx playwright test
+  artifacts:
+    when: on_failure
+    paths: [test-results/]
+    expire_in: 1 week
+
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run build
+    # The same set of files the README lists for a manual cPanel upload.
+    - mkdir package
+    - cp -R src public prisma server.js package.json package-lock.json next.config.ts tsconfig.json postcss.config.mjs README.md package/
+    - cp -RL .next package/.next # -L: .next/node_modules holds symlinks into node_modules
+    - rm -rf package/.next/cache package/.next/dev
+    - find package -name "*.db" -delete
+  artifacts:
+    name: angisan-cpanel-$CI_COMMIT_SHORT_SHA
+    paths: [package/]
+    expire_in: 2 weeks
+
+deploy:
+  stage: deploy
+  image: alpine:3.20
+  needs: [unit, e2e, build]
+  interruptible: false
+  resource_group: production # never two uploads at once
+  environment:
+    name: production
+    url: https://angisan.mn
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CPANEL_FTP_HOST
+  variables:
+    GIT_STRATEGY: none
+    LFTP_PASSWORD: $CPANEL_FTP_PASSWORD
+  cache: []
+  script:
+    - apk add --no-cache lftp ca-certificates
+    - date -u +"%Y-%m-%dT%H:%M:%SZ $CI_COMMIT_SHORT_SHA" > restart.txt
+    # Sources first, then the build (deleting chunks that no longer exist), then restart.txt:
+    # Passenger restarts the app when tmp/restart.txt changes.
+    - |
+      lftp --env-password -u "$CPANEL_FTP_USER" "$CPANEL_FTP_HOST" <<EOF
+      set cmd:fail-exit yes
+      set ftp:ssl-force yes
+      set ftp:ssl-protect-data yes
+      set ssl:verify-certificate ${CPANEL_FTP_VERIFY_CERT:-yes}
+      set net:max-retries 3
+      set net:timeout 30
+      mirror --reverse --parallel=4 --exclude-glob .next/ package/ "$CPANEL_APP_DIR/"
+      mirror --reverse --parallel=4 --delete package/.next/ "$CPANEL_APP_DIR/.next/"
+      mkdir -p -f "$CPANEL_APP_DIR/tmp"
+      put -O "$CPANEL_APP_DIR/tmp" restart.txt
+      bye
+      EOF
+    - echo "Deployed $CI_COMMIT_SHORT_SHA. If package-lock.json changed in this release, press 'Run NPM Install' for the app in cPanel and restart it."
