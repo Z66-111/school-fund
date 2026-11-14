@@ -80,6 +80,11 @@ stays on Turso, so no data move is needed.
    domain.
 3. **Environment variables**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
    `DATABASE_URL=file:./unused.db`.
+   Also set `APP_ORIGIN` to the site's public address, e.g.
+   `https://angisan.mn` (no trailing slash). After a login or a saved form the
+   app fetches the next page from its own address; under Passenger it has no
+   port of its own, so it needs to be told. Without it the site still works,
+   but each login logs a `failed to get redirect response` error.
 4. **Run NPM Install** while still in Development mode — `postinstall` runs
    `prisma generate`, and the Prisma CLI is a dev dependency, so Production
    mode would skip it and the app fails to start.
