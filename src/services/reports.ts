@@ -7,6 +7,7 @@ import { isMonthClosed } from "@/services/attendance";
 import { toCsv } from "@/lib/csv";
 import { toISODate } from "@/lib/dates";
 import { mn } from "@/lib/i18n/mn";
+import type { Dict } from "@/lib/i18n";
 import type { Actor } from "@/lib/roles";
 import type { Expense } from "@prisma/client";
 
@@ -46,18 +47,18 @@ export type FoodReport = {
   year: number;
   month: number;
   closed: boolean;
-  rows: { studentId: string; name: string; daysPresent: number; amount: number; paid: number; outstanding: number; provisional: boolean }[];
+  rows: { studentId: string; name: string; daysPresent: number; deductedDays: number; amount: number; paid: number; outstanding: number; provisional: boolean }[];
   totals: { amount: number; paid: number; outstanding: number };
 };
 
 /** Per-student invoices for one closed month; `kind` picks food or daycare invoices and the matching payments. */
-export async function monthlyFoodReport(actor: Actor, classId: string, year: number, month: number, kind: InvoiceKind = "FOOD"): Promise<FoodReport> {
+export async function monthlyFoodReport(actor: Actor, classId: string, year: number, month: number, kind: InvoiceKind = "FOOD", now: Date = new Date()): Promise<FoodReport> {
   requireRole(actor, "TEACHER", "ADMIN", "ACCOUNTANT");
   await assertClassAccess(actor, classId);
   const klass = await prisma.class.findUniqueOrThrow({ where: { id: classId } });
   const students = await prisma.student.findMany({ where: { classId }, select: { id: true, name: true } });
   const studentIds = students.map((s) => s.id);
-  const charges = await chargesFor(studentIds);
+  const charges = await chargesFor(studentIds, now);
   const paidRows = await prisma.payment.groupBy({ by: ["studentId"], where: { kind, deletedAt: null, studentId: { in: studentIds } }, _sum: { amount: true } });
   const paidBy = new Map(paidRows.map((p) => [p.studentId, p._sum.amount ?? 0]));
   const rows: FoodReport["rows"] = [];
@@ -66,36 +67,44 @@ export async function monthlyFoodReport(actor: Actor, classId: string, year: num
     const allocated = allocateFoodPayments(kind === "DAYCARE" ? c.daycare : c.food, paidBy.get(s.id) ?? 0);
     const inv = allocated.find((i) => i.year === year && i.month === month);
     if (!inv) continue;
-    rows.push({ studentId: s.id, name: s.name, daysPresent: inv.daysPresent, amount: inv.amount, paid: inv.paid, outstanding: inv.outstanding, provisional: inv.provisional });
+    rows.push({ studentId: s.id, name: s.name, daysPresent: inv.daysPresent, deductedDays: inv.deductedDays ?? 0, amount: inv.amount, paid: inv.paid, outstanding: inv.outstanding, provisional: inv.provisional });
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
   const totals = rows.reduce((t, r) => ({ amount: t.amount + r.amount, paid: t.paid + r.paid, outstanding: t.outstanding + r.outstanding }), { amount: 0, paid: 0, outstanding: 0 });
   return { kind, className: klass.name, year, month, closed: await isMonthClosed(classId, year, month), rows, totals };
 }
 
-export function fundReportCsv(r: FundReport): string {
+export function fundReportCsv(r: FundReport, t: Dict = mn): string {
   const rows: (string | number)[][] = [
-    [mn.report.fund, r.className],
-    [mn.report.collected, r.collected],
-    [mn.report.spent, r.spent],
-    [mn.report.balance, r.balance],
+    [t.report.fund, r.className],
+    [t.report.collected, r.collected],
+    [t.report.spent, r.spent],
+    [t.report.balance, r.balance],
     [],
-    [mn.report.contributions],
-    [mn.common.student, mn.invoice.paid, mn.report.due],
+    [t.report.contributions],
+    [t.common.student, t.invoice.paid, t.report.due],
     ...r.contributions.map((c) => [c.name, c.paid, c.due]),
     [],
-    [mn.expense.title],
-    [mn.common.date, mn.expense.itemTitle, mn.common.amount, mn.common.note],
+    [t.expense.title],
+    [t.common.date, t.expense.itemTitle, t.common.amount, t.common.note],
     ...r.expenses.map((e) => [toISODate(e.date), e.title, e.amount, e.note]),
   ];
   return toCsv(rows);
 }
 
-export function foodReportCsv(r: FoodReport): string {
+export function foodReportCsv(r: FoodReport, t: Dict = mn): string {
   return toCsv([
-    [r.kind === "DAYCARE" ? mn.report.daycare : mn.report.food, r.className, `${r.year} ${mn.months[r.month - 1]}`],
-    [mn.common.student, mn.attendance.daysPresent, mn.invoice.amount, mn.invoice.paid, mn.invoice.outstanding],
-    ...r.rows.map((x) => [x.name, x.daysPresent, x.amount, x.paid, x.outstanding]),
-    [mn.common.total, "", r.totals.amount, r.totals.paid, r.totals.outstanding],
+    [r.kind === "DAYCARE" ? t.report.daycare : t.report.food, r.className, `${r.year} ${t.months[r.month - 1]}`],
+    ...(r.kind === "DAYCARE"
+      ? [
+          [t.common.student, t.invoice.daycareDays, t.invoice.deductedDays, t.invoice.amount, t.invoice.paid, t.invoice.outstanding],
+          ...r.rows.map((x) => [x.name, x.daysPresent, x.deductedDays, x.amount, x.paid, x.outstanding]),
+          [t.common.total, "", "", r.totals.amount, r.totals.paid, r.totals.outstanding],
+        ]
+      : [
+          [t.common.student, t.attendance.daysPresent, t.invoice.amount, t.invoice.paid, t.invoice.outstanding],
+          ...r.rows.map((x) => [x.name, x.daysPresent, x.amount, x.paid, x.outstanding]),
+          [t.common.total, "", r.totals.amount, r.totals.paid, r.totals.outstanding],
+        ]),
   ]);
 }

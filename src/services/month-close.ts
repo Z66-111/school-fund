@@ -5,7 +5,8 @@ import { parse } from "@/lib/validate";
 import { isFutureMonth } from "@/lib/dates";
 import { countPresentDays, invoiceAmount } from "@/lib/billing";
 import { holidayDates } from "@/services/holidays";
-import { getMonthAttendance, getMonthDaycare, isMonthClosed } from "@/services/attendance";
+import { getMonthAttendance, isMonthClosed } from "@/services/attendance";
+import { chargesFor } from "@/services/charges";
 import { AppError } from "@/lib/errors";
 import { mn } from "@/lib/i18n/mn";
 import type { Actor } from "@/lib/roles";
@@ -24,12 +25,13 @@ export async function closeMonth(actor: Actor, input: unknown, now: Date = new D
   if (await isMonthClosed(v.classId, v.year, v.month)) throw new AppError("MONTH_ALREADY_CLOSED", mn.errors.monthAlreadyClosed);
 
   const klass = await prisma.class.findUniqueOrThrow({ where: { id: v.classId } });
-  const [students, rows, daycareRows, holidays] = await Promise.all([
+  const [students, rows, holidays] = await Promise.all([
     prisma.student.findMany({ where: { classId: v.classId, isActive: true }, select: { id: true } }),
     getMonthAttendance(v.classId, v.year, v.month),
-    getMonthDaycare(v.classId, v.year, v.month),
     holidayDates(klass.schoolYearId),
   ]);
+  // The month is still open here, so its prepaid Өдөр өнжүүлэх charge is the one to freeze.
+  const charges = await chargesFor(students.map((s) => s.id), now);
 
   await prisma.$transaction(async (tx) => {
     const close = await tx.monthClose.create({
@@ -48,17 +50,18 @@ export async function closeMonth(actor: Actor, input: unknown, now: Date = new D
           amount: invoiceAmount(daysPresent, klass.dailyFoodRate),
         },
       });
-      const daycareDays = countPresentDays(daycareRows.filter((r) => r.studentId === s.id).map((r) => ({ date: r.date, status: "PRESENT" })), v.year, v.month, holidays);
-      if (daycareDays > 0) {
+      const daycare = charges.get(s.id)!.daycare.find((c) => c.provisional && c.year === v.year && c.month === v.month);
+      if (daycare) {
         await tx.daycareInvoice.create({
           data: {
             studentId: s.id,
             monthCloseId: close.id,
             year: v.year,
             month: v.month,
-            daysPresent: daycareDays,
-            rate: klass.dailyDaycareRate,
-            amount: invoiceAmount(daycareDays, klass.dailyDaycareRate),
+            daysPresent: daycare.daysPresent,
+            deductedDays: daycare.deductedDays ?? 0,
+            rate: daycare.rate,
+            amount: daycare.amount,
           },
         });
       }

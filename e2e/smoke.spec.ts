@@ -30,7 +30,7 @@ test("teacher marks attendance and closes month; accountant pays; parent sees ze
   await expect(page.locator("text=Хадгалагдлаа")).toBeVisible();
   await page.click('form button:has-text("Сар хаах")');
   await page.getByRole("dialog").getByRole("button", { name: "Сар хаах" }).click();
-  await expect(page.locator("text=Хаагдсан")).toBeVisible();
+  await expect(page.getByText("Хаагдсан", { exact: true })).toBeVisible();
   await logout(page);
 
   await login(page, "accountant@school.local");

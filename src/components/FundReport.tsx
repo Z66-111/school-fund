@@ -3,10 +3,11 @@ import { Table } from "@/components/ui/Table";
 import { StatTile } from "@/components/ui/StatTile";
 import { buttonClass } from "@/components/ui/Button";
 import { toISODate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 import type { FundReport } from "@/services/reports";
 
-export function FundReportView({ r, classId }: { r: FundReport; classId: string }) {
+export async function FundReportView({ r, classId }: { r: FundReport; classId: string }) {
+  const mn = await getT();
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">

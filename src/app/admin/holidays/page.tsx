@@ -9,9 +9,10 @@ import { Field } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { buttonClass } from "@/components/ui/Button";
 import { toISODate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+  const mn = await getT();
   await requirePage("ADMIN");
   const sp = await searchParams;
   const years = await listSchoolYears();

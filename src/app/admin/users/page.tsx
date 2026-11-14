@@ -8,9 +8,10 @@ import { Field } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ROLES } from "@/lib/roles";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page() {
+  const mn = await getT();
   await requirePage("ADMIN");
   const users = await listUsers();
   return (

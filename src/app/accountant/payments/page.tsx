@@ -7,10 +7,11 @@ import { Table } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toISODate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 import type { PaymentKind } from "@/lib/roles";
 
 export default async function Page() {
+  const mn = await getT();
   const actor = await requirePage("ACCOUNTANT", "ADMIN");
   const payments = await listAllPayments(actor);
   return (

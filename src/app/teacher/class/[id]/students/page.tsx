@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { requireClassPage } from "@/lib/page-auth";
 import { listStudents } from "@/services/students";
-import { addStudentAction, setStudentActiveAction, deleteStudentAction, linkParentAction, createParentAction } from "@/actions/students";
+import { addStudentAction, setStudentActiveAction, deleteStudentAction, linkParentAction, createParentAction, setDaycareEnrollmentAction } from "@/actions/students";
+import { toISODate } from "@/lib/dates";
 import { ActionForm } from "@/components/ActionForm";
 import { Table } from "@/components/ui/Table";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ all?: string }> }) {
+  const mn = await getT();
   const { id } = await params;
   const actor = await requireClassPage(id, "TEACHER", "ADMIN");
   const isTeacher = actor.role === "TEACHER";
@@ -23,7 +25,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <Link href={all === "1" ? "?" : "?all=1"} className="link">{all === "1" ? mn.common.active : mn.student.showInactive}</Link>
         </div>
         <Table>
-          <thead><tr><th>{mn.common.name}</th><th>{mn.student.parents}</th><th>{mn.common.status}</th>{isTeacher && <th />}</tr></thead>
+          <thead><tr><th>{mn.common.name}</th><th>{mn.student.parents}</th><th>{mn.student.daycare}</th><th>{mn.common.status}</th>{isTeacher && <th />}</tr></thead>
           <tbody>
             {students.map((s) => (
               <tr key={s.id} className={s.isActive ? "" : "muted"}>
@@ -56,10 +58,26 @@ export default async function Page({ params, searchParams }: { params: Promise<{
                     </div>
                   )}
                 </td>
+                <td>
+                  {s.daycareFrom
+                    ? <span className="num whitespace-nowrap">{toISODate(s.daycareFrom)}{s.daycareUntil ? ` – ${toISODate(s.daycareUntil)}` : " –"}</span>
+                    : <span className="text-ink-muted">{mn.student.daycareNone}</span>}
+                  {isTeacher && (
+                    <details className="mt-2 text-xs">
+                      <summary>{mn.student.daycareEdit}</summary>
+                      <ActionForm action={setDaycareEnrollmentAction} submitLabel={mn.common.save} className="mt-2 flex w-56 flex-col gap-2" variant="secondary" size="sm" labels={{ from: mn.student.daycareFrom, until: mn.student.daycareUntil }}>
+                        <input type="hidden" name="classId" value={id} />
+                        <input type="hidden" name="studentId" value={s.id} />
+                        <Field label={mn.student.daycareFrom}><input name="from" type="date" defaultValue={s.daycareFrom ? toISODate(s.daycareFrom) : ""} className="input" /></Field>
+                        <Field label={mn.student.daycareUntil} hint={mn.student.daycareHint}><input name="until" type="date" defaultValue={s.daycareUntil ? toISODate(s.daycareUntil) : ""} className="input" /></Field>
+                      </ActionForm>
+                    </details>
+                  )}
+                </td>
                 <td>{s.isActive ? <Badge tone="good">{mn.common.active}</Badge> : <Badge>{mn.common.inactive}</Badge>}</td>
                 {isTeacher && (
                   <td className="whitespace-nowrap text-right">
-                    <div className="inline-flex items-center gap-1">
+                    <div className="inline-flex flex-col items-end gap-1">
                       <ActionForm action={setStudentActiveAction} submitLabel={s.isActive ? mn.common.deactivate : mn.common.activate} className="inline-flex" variant="secondary" size="sm">
                         <input type="hidden" name="classId" value={id} />
                         <input type="hidden" name="studentId" value={s.id} />
@@ -74,7 +92,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
                 )}
               </tr>
             ))}
-            {students.length === 0 && <tr><td colSpan={isTeacher ? 4 : 3} className="text-ink-muted">{mn.common.empty}</td></tr>}
+            {students.length === 0 && <tr><td colSpan={isTeacher ? 5 : 4} className="text-ink-muted">{mn.common.empty}</td></tr>}
           </tbody>
         </Table>
       </section>

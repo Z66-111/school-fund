@@ -61,6 +61,9 @@ The app runs on Vercel; the database is Turso (hosted SQLite). When
 4. **Before sharing the link**, log in as admin and change every `changeme`
    password (Admin → Хэрэглэгчид).
 
+5. **Domain** — add `angisan.mn` to the project (Vercel: Settings → Domains)
+   and point the domain's DNS records where the host tells you.
+
 ## Alternative: cPanel (Setup Node.js App)
 
 Needs a host with the **Setup Node.js App** icon (CloudLinux Node.js
@@ -94,3 +97,29 @@ with the Turso CLI, e.g.
     npx prisma migrate diff --from-schema-datamodel /tmp/old.prisma \
       --to-schema-datamodel prisma/schema.prisma --script > change.sql
     turso db shell school-fund < change.sql
+
+## Өдөр өнжүүлэх (daycare) billing
+
+Daycare is prepaid. A child enrolled on the class's Сурагчид page owes the whole
+month from its first day: the class's daily rate × that month's school days.
+The teacher marks only the days the child did not stay; each of those days is
+deducted, at the daily rate, from the following month's charge.
+
+Moving a database that still has old pay-per-day ticks to this rule:
+
+    npm run db:daycare-convert              # dry run, prints the plan
+    npm run db:daycare-convert -- --apply   # enrols those children and records their skipped days
+
+A new Turso database made with `npm run db:turso-copy` already has all of this. Only a hosted
+database created before this version needs the schema added by hand first:
+
+    ALTER TABLE "Student" ADD COLUMN "daycareFrom" DATETIME;
+    ALTER TABLE "Student" ADD COLUMN "daycareUntil" DATETIME;
+    ALTER TABLE "DaycareInvoice" ADD COLUMN "deductedDays" INTEGER NOT NULL DEFAULT 0;
+    CREATE TABLE "DaycareSkip" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "studentId" TEXT NOT NULL,
+        "date" DATETIME NOT NULL,
+        CONSTRAINT "DaycareSkip_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+    CREATE UNIQUE INDEX "DaycareSkip_studentId_date_key" ON "DaycareSkip"("studentId", "date");

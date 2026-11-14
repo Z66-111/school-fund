@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 import { buttonClass } from "@/components/ui/Button";
 
 /** Previous / current / next month stepper driven by ?year=&month= query params. */
-export function MonthNav({ year, month, children, keep = "" }: { year: number; month: number; children?: React.ReactNode; keep?: string /* extra query, e.g. "&mode=daycare" */ }) {
+export async function MonthNav({ year, month, children, keep = "" }: { year: number; month: number; children?: React.ReactNode; keep?: string /* extra query, e.g. "&mode=daycare" */ }) {
+  const mn = await getT();
   const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
   const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
   return (

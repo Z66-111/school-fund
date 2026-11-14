@@ -1,9 +1,10 @@
 import { requireClassPage } from "@/lib/page-auth";
 import { getClass } from "@/services/classes";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 import { ClassTabs } from "@/components/ClassTabs";
 
 export default async function ClassLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
+  const mn = await getT();
   const { id } = await params;
   await requireClassPage(id, "TEACHER", "ADMIN");
   const c = await getClass(id);
@@ -11,9 +12,9 @@ export default async function ClassLayout({ children, params }: { children: Reac
   const tabs = [
     { href: `${base}/attendance`, label: mn.nav.attendance },
     { href: `${base}/students`, label: mn.nav.students },
-    { href: `${base}/expenses`, label: mn.nav.expenses },
     { href: `${base}/report`, label: mn.nav.report },
     { href: `${base}/schedule`, label: mn.nav.schedule },
+    { href: `${base}/announcement`, label: mn.nav.announcement },
   ];
   return (
     <div>

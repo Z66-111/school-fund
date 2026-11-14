@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireRole, assertClassAccess } from "@/lib/authz";
 import { parse } from "@/lib/validate";
 import { parseDateOnly, isFuture, monthRange } from "@/lib/dates";
-import { isChargeable } from "@/lib/billing";
+import { isChargeable, isEnrolledOn } from "@/lib/billing";
 import { holidayDates } from "@/services/holidays";
 import { dateStringSchema } from "@/services/school-years";
 import { AppError, ForbiddenError } from "@/lib/errors";
@@ -58,30 +58,40 @@ const daycareSchema = z.object({
   changes: z.array(z.object({ studentId: z.string().min(1), date: dateStringSchema, present: z.boolean() })).min(1).max(5000),
 });
 
-/** Same rules as saveAttendance, for the separate Өдөр өнжүүлэх grid: `present` ticks or unticks the day. */
+/**
+ * Same date rules as saveAttendance, for the Өдөр өнжүүлэх grid. An enrolled child is taken to have
+ * stayed every school day, so only the exceptions are stored: `present: false` records a skipped
+ * day, `present: true` removes it. Days outside the child's enrolment window are rejected.
+ */
 export async function saveDaycare(actor: Actor, input: unknown, now: Date = new Date()): Promise<number> {
   requireRole(actor, "TEACHER");
   const v = parse(daycareSchema, input);
   await assertClassAccess(actor, v.classId);
   const klass = await prisma.class.findUniqueOrThrow({ where: { id: v.classId } });
   const ids = [...new Set(v.changes.map((c) => c.studentId))];
-  const inClass = await prisma.student.count({ where: { id: { in: ids }, classId: v.classId } });
-  if (inClass !== ids.length) throw new ForbiddenError();
+  const students = await prisma.student.findMany({ where: { id: { in: ids }, classId: v.classId }, select: { id: true, daycareFrom: true, daycareUntil: true } });
+  if (students.length !== ids.length) throw new ForbiddenError();
   for (const iso of new Set(v.changes.map((c) => c.date))) await guardDate(v.classId, klass.schoolYearId, parseDateOnly(iso), now);
+  const byId = new Map(students.map((s) => [s.id, s]));
+  for (const c of v.changes) {
+    const s = byId.get(c.studentId)!;
+    if (!isEnrolledOn(parseDateOnly(c.date), s.daycareFrom, s.daycareUntil)) throw new AppError("NOT_ENROLLED", mn.errors.daycareNotEnrolled);
+  }
   await prisma.$transaction(
     v.changes.map((c) => {
       const date = parseDateOnly(c.date);
       return c.present
-        ? prisma.daycareAttendance.upsert({ where: { studentId_date: { studentId: c.studentId, date } }, update: {}, create: { studentId: c.studentId, date } })
-        : prisma.daycareAttendance.deleteMany({ where: { studentId: c.studentId, date } });
+        ? prisma.daycareSkip.deleteMany({ where: { studentId: c.studentId, date } })
+        : prisma.daycareSkip.upsert({ where: { studentId_date: { studentId: c.studentId, date } }, update: {}, create: { studentId: c.studentId, date } });
     }),
   );
   return v.changes.length;
 }
 
-export function getMonthDaycare(classId: string, year: number, month: number) {
+/** The skipped Өдөр өнжүүлэх days of a class in one month. */
+export function getMonthDaycareSkips(classId: string, year: number, month: number) {
   const { start, end } = monthRange(year, month);
-  return prisma.daycareAttendance.findMany({
+  return prisma.daycareSkip.findMany({
     where: { student: { classId }, date: { gte: start, lt: end } },
     select: { studentId: true, date: true },
   });

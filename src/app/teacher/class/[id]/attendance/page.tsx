@@ -2,19 +2,21 @@ import Link from "next/link";
 import { requireClassPage } from "@/lib/page-auth";
 import { getClass } from "@/services/classes";
 import { listStudents } from "@/services/students";
-import { getMonthAttendance, getMonthDaycare, isMonthClosed } from "@/services/attendance";
+import { getMonthAttendance, getMonthDaycareSkips, isMonthClosed } from "@/services/attendance";
 import { holidayDates } from "@/services/holidays";
 import { closeMonthAction } from "@/actions/month-close";
 import { ActionForm } from "@/components/ActionForm";
 import { AttendanceGrid, type GridDay } from "@/components/AttendanceGrid";
+import { AttendanceImport } from "@/components/AttendanceImport";
 import { MonthNav } from "@/components/MonthNav";
 import { Badge } from "@/components/ui/Badge";
 import { monthDates, toISODate, todayDate, isFuture, isFutureMonth } from "@/lib/dates";
-import { isChargeable } from "@/lib/billing";
-import { mn } from "@/lib/i18n/mn";
+import { isChargeable, daycareCells } from "@/lib/billing";
+import { getT } from "@/lib/i18n/server";
 import type { AttendanceStatus } from "@/lib/roles";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string; mode?: string }> }) {
+  const mn = await getT();
   const { id } = await params;
   const actor = await requireClassPage(id, "TEACHER", "ADMIN");
   const isTeacher = actor.role === "TEACHER";
@@ -24,19 +26,28 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const month = Number(sp.month ?? today.getUTCMonth() + 1);
   const mode = sp.mode === "daycare" ? "daycare" : "attendance";
   const c = await getClass(id);
-  const [students, rows, holidays, closed] = await Promise.all([
+  const [roster, rows, skips, holidays, closed] = await Promise.all([
     listStudents(id),
-    mode === "daycare"
-      ? getMonthDaycare(id, year, month).then((r) => r.map((x) => ({ ...x, status: "STAYED" })))
-      : getMonthAttendance(id, year, month),
+    mode === "daycare" ? [] : getMonthAttendance(id, year, month),
+    mode === "daycare" ? getMonthDaycareSkips(id, year, month) : [],
     holidayDates(c.schoolYearId),
     isMonthClosed(id, year, month),
   ]);
   const days: GridDay[] = monthDates(year, month).map((d) => ({
     iso: toISODate(d), day: d.getUTCDate(), weekday: d.getUTCDay(), chargeable: isChargeable(d, holidays), future: isFuture(d),
   }));
-  const initial: Record<string, AttendanceStatus | "STAYED" | null> = {};
-  for (const r of rows) initial[`${r.studentId}|${toISODate(r.date)}`] = r.status as AttendanceStatus | "STAYED";
+  const initial: Record<string, AttendanceStatus | "STAYED" | "SKIPPED" | null> = {};
+  for (const r of rows) initial[`${r.studentId}|${toISODate(r.date)}`] = r.status as AttendanceStatus;
+  let students = roster;
+  if (mode === "daycare") {
+    // Prepaid: only children enrolled for some school day of this month appear, every such day pre-filled as stayed.
+    const skipped = new Set(skips.map((r) => `${r.studentId}|${toISODate(r.date)}`));
+    students = roster.filter((s) => {
+      const cells = daycareCells(s, days, skipped);
+      Object.assign(initial, cells);
+      return Object.keys(cells).length > 0;
+    });
+  }
   const todayIso = toISODate(today);
   const todayInMonth = todayIso.startsWith(`${year}-${String(month).padStart(2, "0")}`);
 
@@ -57,7 +68,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           {tab("daycare", mn.attendance.tabDaycare, `?${ym}&mode=daycare`)}
         </nav>
       </div>
-      {mode === "daycare" && <p className="text-sm text-ink-muted">{mn.attendance.daycareHint}</p>}
+      {mode === "daycare" && <p className="max-w-3xl text-sm text-ink-muted">{students.length > 0 ? mn.attendance.daycareHint : mn.attendance.daycareNoneEnrolled}</p>}
       <AttendanceGrid
         key={`${mode}-${year}-${month}`}
         mode={mode}
@@ -75,6 +86,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           </ActionForm>
         )}
       />
+      {isTeacher && mode === "attendance" && <AttendanceImport classId={id} />}
     </div>
   );
 }

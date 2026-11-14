@@ -4,19 +4,20 @@ import { useRouter } from "next/navigation";
 import { saveAttendanceAction, saveDaycareAction } from "@/actions/attendance";
 import { buttonClass } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { mn } from "@/lib/i18n/mn";
+import { useT } from "@/lib/i18n/client";
 import type { AttendanceStatus } from "@/lib/roles";
 
 export type GridStudent = { id: string; name: string };
 export type GridDay = { iso: string; day: number; weekday: number; chargeable: boolean; future: boolean };
 export type GridMode = "attendance" | "daycare";
-type Status = AttendanceStatus | "STAYED" | null;
+type Status = AttendanceStatus | "STAYED" | "SKIPPED" | null;
 type Cells = Record<string, Status>; // key `${studentId}|${iso}`
 
-// Click cycles per mode; `all` is what a day-number click fills in, and what the right-hand count totals.
-const MODES: Record<GridMode, { next: Record<string, Status>; all: Status }> = {
-  attendance: { next: { none: "PRESENT", PRESENT: "ABSENT", ABSENT: "SICK", SICK: null }, all: "PRESENT" },
-  daycare: { next: { none: "STAYED", STAYED: null }, all: "STAYED" },
+// Click cycles per mode; `all` is what a day-number click fills in, `off` what a second click sets, `count` what the right-hand column totals.
+// Daycare is prepaid: an enrolled day starts as STAYED and the teacher only marks the exceptions; a day with no cell is outside the enrolment.
+const MODES: Record<GridMode, { next: Record<string, Status>; all: Status; off: Status; count: Status }> = {
+  attendance: { next: { none: "PRESENT", PRESENT: "ABSENT", ABSENT: "SICK", SICK: null }, all: "PRESENT", off: null, count: "PRESENT" },
+  daycare: { next: { none: null, STAYED: "SKIPPED", SKIPPED: "STAYED" }, all: "STAYED", off: "SKIPPED", count: "SKIPPED" },
 };
 
 /**
@@ -31,9 +32,10 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
   classId?: string;
   todayIso?: string;
   monthActions?: React.ReactNode; // e.g. close month; disabled while there are unsaved edits
-  mode?: GridMode; // "daycare" marks who stayed for Өдөр өнжүүлэх instead of class attendance
+  mode?: GridMode; // "daycare" marks the days an enrolled child skipped Өдөр өнжүүлэх instead of class attendance
 }) {
-  const { next, all } = MODES[mode];
+  const mn = useT();
+  const { next, all, off, count } = MODES[mode];
   const editable = !readOnly && !!classId;
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
@@ -85,21 +87,24 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
     setCells(fn);
   };
   const click = (studentId: string, iso: string) =>
-    edit((c) => ({ ...c, [`${studentId}|${iso}`]: next[c[`${studentId}|${iso}`] ?? "none"] }));
+    edit((c) => ({ ...c, [`${studentId}|${iso}`]: next[c[`${studentId}|${iso}`] ?? "none"] ?? null }));
+  // In daycare mode only enrolled days can be marked; they are the ones that arrive with a cell.
+  const markable = (k: string) => mode !== "daycare" || (saved[k] ?? null) !== null;
+  const dayStudents = (iso: string) => students.filter((s) => markable(`${s.id}|${iso}`));
   const setDay = (iso: string, status: Status) =>
     edit((c) => {
       const n = { ...c };
-      for (const s of students) n[`${s.id}|${iso}`] = status;
+      for (const s of dayStudents(iso)) n[`${s.id}|${iso}`] = status;
       return n;
     });
-  const dayAllPresent = (iso: string) => students.length > 0 && students.every((s) => cells[`${s.id}|${iso}`] === all);
-  const canMarkDay = (d: GridDay) => editable && d.chargeable && !d.future && students.length > 0;
+  const dayAllPresent = (iso: string) => dayStudents(iso).length > 0 && dayStudents(iso).every((s) => cells[`${s.id}|${iso}`] === all);
+  const canMarkDay = (d: GridDay) => editable && d.chargeable && !d.future && dayStudents(d.iso).length > 0;
   const today = days.find((d) => d.iso === todayIso && canMarkDay(d));
 
   const save = () =>
     start(async () => {
       const r = mode === "daycare"
-        ? await saveDaycareAction(classId!, changes.map((c) => ({ studentId: c.studentId, date: c.date, present: c.status !== null })))
+        ? await saveDaycareAction(classId!, changes.map((c) => ({ studentId: c.studentId, date: c.date, present: c.status !== "SKIPPED" })))
         : await saveAttendanceAction(classId!, changes.map((c) => ({ ...c, status: c.status as AttendanceStatus | null })));
       if (r.ok) {
         setSaved(cells);
@@ -108,17 +113,19 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
       } else setError(r.error);
     });
 
+  const dayAllLabel = mode === "daycare" ? mn.attendance.allStayedToday : mn.attendance.dayAllPresent;
+  const dayOffLabel = mode === "daycare" ? mn.attendance.dayAllSkipped : mn.attendance.dayClear;
   const label = (s: Status) =>
-    s === "STAYED" ? mn.attendance.daycareMark : s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
+    s === "STAYED" ? mn.attendance.daycareMark : s === "SKIPPED" ? mn.attendance.daycareSkipMark : s === "PRESENT" ? mn.attendance.presentShort : s === "ABSENT" ? mn.attendance.absentShort : s === "SICK" ? mn.attendance.sickShort : "";
   const tone = (s: Status) =>
     s === "STAYED"
       ? "bg-brand-soft text-brand"
       : s === "PRESENT"
       ? "bg-present-soft text-present"
-      : s === "ABSENT"
+      : s === "ABSENT" || s === "SKIPPED"
         ? "bg-absent-soft text-absent"
         : s === "SICK"
-          ? "bg-due-soft text-due"
+          ? "bg-due-soft text-ink"
           : "bg-surface text-transparent ring-1 ring-inset ring-rule";
 
   return (
@@ -129,12 +136,12 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
             {today && (
               <>
                 <button type="button" onClick={() => setDay(today.iso, all)} className={buttonClass("secondary", "sm")}>{mode === "daycare" ? mn.attendance.allStayedToday : mn.attendance.markAllPresentToday}</button>
-                <button type="button" onClick={() => setDay(today.iso, null)} className={buttonClass("secondary", "sm")}>{mn.attendance.clearToday}</button>
+                {mode !== "daycare" && <button type="button" onClick={() => setDay(today.iso, null)} className={buttonClass("secondary", "sm")}>{mn.attendance.clearToday}</button>}
               </>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {dirty && <span className="text-sm text-due">{changes.length} {mn.attendance.unsaved}</span>}
+            {dirty && <span className="rounded-sm bg-due-soft px-2 py-0.5 text-sm text-ink">{changes.length} {mn.attendance.unsaved}</span>}
             {!dirty && notice && <span className="text-sm text-present" role="status">{notice}</span>}
             {dirty && <button type="button" disabled={saving} onClick={() => edit(() => saved)} className={buttonClass("secondary", "sm")}>{mn.common.cancel}</button>}
             <button type="button" disabled={!dirty || saving} onClick={save} className={buttonClass("primary", "sm")}>{mn.common.save}</button>
@@ -160,9 +167,9 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
                   {canMarkDay(d) ? (
                     <button
                       type="button"
-                      onClick={() => setDay(d.iso, dayAllPresent(d.iso) ? null : all)}
-                      title={dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}
-                      aria-label={`${d.iso}: ${dayAllPresent(d.iso) ? mn.attendance.dayClear : mn.attendance.dayAllPresent}`}
+                      onClick={() => setDay(d.iso, dayAllPresent(d.iso) ? off : all)}
+                      title={dayAllPresent(d.iso) ? dayOffLabel : dayAllLabel}
+                      aria-label={`${d.iso}: ${dayAllPresent(d.iso) ? dayOffLabel : dayAllLabel}`}
                       className={`w-full rounded-sm py-0.5 hover:bg-brand-soft hover:text-brand ${dayAllPresent(d.iso) ? "bg-present-soft" : ""}`}
                     >
                       <span className="num block text-[13px] text-ink">{d.day}</span>
@@ -176,12 +183,12 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
                   )}
                 </th>
               ))}
-              <th className="sticky right-0 z-10 whitespace-nowrap border-l border-rule bg-surface px-3 py-2 text-right font-medium text-ink-muted">{mode === "daycare" ? mn.attendance.daycareDays : mn.attendance.daysPresent}</th>
+              <th className="sticky right-0 z-10 whitespace-nowrap border-l border-rule bg-surface px-3 py-2 text-right font-medium text-ink-muted">{mode === "daycare" ? mn.attendance.daycareSkippedDays : mn.attendance.daysPresent}</th>
             </tr>
           </thead>
           <tbody>
             {students.map((s) => {
-              const present = days.filter((d) => d.chargeable && cells[`${s.id}|${d.iso}`] === all).length;
+              const present = days.filter((d) => d.chargeable && cells[`${s.id}|${d.iso}`] === count).length;
               return (
                 <tr key={s.id} className="border-t border-rule">
                   <td className="sticky left-0 z-10 whitespace-nowrap bg-surface px-3 py-1 text-sm">{s.name}</td>
@@ -191,6 +198,7 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
                     const changed = st !== (saved[k] ?? null);
                     const disabled = !editable || d.future || saving;
                     if (!d.chargeable) return <td key={d.iso} className="bg-surface-2 p-0" />;
+                    if (mode === "daycare" && st === null) return <td key={d.iso} className="p-0.5"><span className="block h-7 w-7 rounded-sm bg-surface-2/70" /></td>;
                     return (
                       <td key={d.iso} className="p-0.5">
                         <button
@@ -220,7 +228,11 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-ink-muted">
         <span>{mn.attendance.legend}:</span>
         {mode === "daycare" ? (
-          <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-brand-soft ring-1 ring-brand/40" />{mn.attendance.daycareStayed}</span>
+          <>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-brand-soft ring-1 ring-brand/40" />{mn.attendance.daycareStayed}</span>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-absent-soft ring-1 ring-absent/40" />{mn.attendance.daycareSkipped}</span>
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface-2/70" />{mn.attendance.daycareNotEnrolled}</span>
+          </>
         ) : (
           <>
             <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-present-soft ring-1 ring-present/40" />{mn.attendance.present}</span>
@@ -228,7 +240,7 @@ export function AttendanceGrid({ students, days, initial, readOnly, classId, tod
             <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-due-soft ring-1 ring-due/40" />{mn.attendance.sick}</span>
           </>
         )}
-        <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface ring-1 ring-rule-strong" />{mn.attendance.unmarked}</span>
+        {mode !== "daycare" && <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface ring-1 ring-rule-strong" />{mn.attendance.unmarked}</span>}
         <span className="flex items-center gap-1.5"><i className="inline-block h-3.5 w-3.5 rounded-sm bg-surface-2" />{mn.attendance.nonChargeable}</span>
         {editable && <span>{mn.attendance.clickToMark}</span>}
         {editable && <span>{mn.attendance.clickDayHint}</span>}

@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { requirePage } from "@/lib/page-auth";
 import { getTeacherClass } from "@/services/classes";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function TeacherHome() {
+  const mn = await getT();
   const actor = await requirePage("TEACHER", "ADMIN");
   if (actor.role === "ADMIN") redirect("/admin");
   const c = await getTeacherClass(actor.userId);

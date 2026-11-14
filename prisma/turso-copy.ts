@@ -17,7 +17,7 @@ const target = new PrismaClient({ adapter: new PrismaLibSQL({ url, authToken: pr
 
 // Parents before children so foreign keys hold. Sessions are skipped: everyone logs in again.
 const order = [
-  "user", "schoolYear", "holiday", "class", "student", "parentStudent", "attendance", "daycareAttendance",
+  "user", "schoolYear", "holiday", "class", "student", "parentStudent", "attendance", "daycareAttendance", "daycareSkip",
   "monthClose", "foodInvoice", "daycareInvoice", "payment", "expense", "lessonSlot", "periodTime",
 ] as const;
 

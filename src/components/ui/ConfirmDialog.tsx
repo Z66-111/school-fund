@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { buttonClass, type ButtonVariant } from "@/components/ui/Button";
-import { mn } from "@/lib/i18n/mn";
+import { useT } from "@/lib/i18n/client";
 
 /** Modal confirmation on the native <dialog>, which gives focus trapping, Esc to cancel and a backdrop for free. */
 export function ConfirmDialog({ open, message, confirmLabel, variant = "primary", onConfirm, onCancel }: {
@@ -12,6 +12,7 @@ export function ConfirmDialog({ open, message, confirmLabel, variant = "primary"
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const mn = useT();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;

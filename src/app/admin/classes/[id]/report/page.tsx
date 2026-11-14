@@ -6,9 +6,10 @@ import { FoodReportView } from "@/components/FoodReport";
 import { MonthPicker } from "@/components/MonthPicker";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { todayDate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ year?: string; month?: string }> }) {
+  const mn = await getT();
   const actor = await requirePage("ADMIN");
   const { id } = await params;
   const sp = await searchParams;

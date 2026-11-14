@@ -58,25 +58,23 @@ describe("closeMonth", () => {
   });
 });
 
-async function stayed(studentId: string, ...days: number[]) {
-  for (const d of days) await prisma.daycareAttendance.create({ data: { studentId, date: dateOnly(2026, 9, d) } });
-}
+const enroll = (studentId: string) => prisma.student.update({ where: { id: studentId }, data: { daycareFrom: dateOnly(2026, 9, 1) } });
 
 describe("closeMonth daycare", () => {
-  it("bills ticked daycare days (not class attendance) at the class daycare rate; no invoice without days", async () => {
+  it("bills an enrolled child the whole month at the class daycare rate (not class attendance); no invoice without enrolment", async () => {
     const { c, s1, s2, actor } = await setup();
     await prisma.class.update({ where: { id: c.id }, data: { dailyDaycareRate: 27000 } });
     await present(s1.id, 1, 2, 3);
     await present(s2.id, 1);
-    await stayed(s1.id, 1, 2, 5); // Sep 5 is Saturday -> 2 days
+    await enroll(s1.id);
     await closeMonth(actor, { classId: c.id, year: "2026", month: "9" }, NOW);
     const inv = await prisma.daycareInvoice.findMany();
-    expect(inv.map((i) => [i.studentId, i.daysPresent, i.rate, i.amount])).toEqual([[s1.id, 2, 27000, 54000]]);
+    expect(inv.map((i) => [i.studentId, i.daysPresent, i.deductedDays, i.rate, i.amount])).toEqual([[s1.id, 22, 0, 27000, 594000]]);
   });
   it("reopening removes daycare invoices and a later daycare payment blocks it", async () => {
     const { c, s1, actor } = await setup();
     const admin = await f.user("ADMIN");
-    await stayed(s1.id, 1);
+    await enroll(s1.id);
     await closeMonth(actor, { classId: c.id, year: "2026", month: "9" }, NOW);
     await reopenMonth(actorOf(admin), { classId: c.id, year: "2026", month: "9" });
     expect(await prisma.daycareInvoice.count()).toBe(0);

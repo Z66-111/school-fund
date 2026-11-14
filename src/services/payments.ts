@@ -75,11 +75,11 @@ export type StudentBalances = {
   daycareCredit: number;
 };
 
-export async function studentBalances(actor: Actor, studentId: string): Promise<StudentBalances> {
+export async function studentBalances(actor: Actor, studentId: string, now: Date = new Date()): Promise<StudentBalances> {
   await assertStudentAccess(actor, studentId);
   const student = await prisma.student.findUniqueOrThrow({ where: { id: studentId }, include: { class: true } });
   const [charges, sums] = await Promise.all([
-    chargesFor([studentId]),
+    chargesFor([studentId], now),
     prisma.payment.groupBy({ by: ["kind"], where: { studentId, deletedAt: null }, _sum: { amount: true } }),
   ]);
   const { food: invoices, daycare: daycareInvoices } = charges.get(studentId)!;
@@ -119,7 +119,7 @@ export type OutstandingRow = {
   fundDue: number;
 };
 
-export async function outstandingTable(actor: Actor, classId?: string): Promise<OutstandingRow[]> {
+export async function outstandingTable(actor: Actor, classId?: string, now: Date = new Date()): Promise<OutstandingRow[]> {
   requireRole(actor, "ACCOUNTANT", "ADMIN");
   const students = await prisma.student.findMany({
     where: classId ? { classId } : {},
@@ -130,7 +130,7 @@ export async function outstandingTable(actor: Actor, classId?: string): Promise<
   });
   const ids = students.map((s) => s.id);
   const [charges, pay] = await Promise.all([
-    chargesFor(ids),
+    chargesFor(ids, now),
     prisma.payment.groupBy({ by: ["studentId", "kind"], where: { studentId: { in: ids }, deletedAt: null }, _sum: { amount: true } }),
   ]);
   const sum = (cs: Charge[]) => cs.reduce((a, c) => a + c.amount, 0);

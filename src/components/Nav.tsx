@@ -1,13 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { mn } from "@/lib/i18n/mn";
+import { useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { logoutAction } from "@/actions/auth";
 import { buttonClass } from "@/components/ui/Button";
 import { Brand } from "@/components/ui/Brand";
 import type { Role } from "@/lib/roles";
 
-const links: Record<Role, { href: string; label: string }[]> = {
+const linksFor = (mn: Dict): Record<Role, { href: string; label: string }[]> => ({
   ADMIN: [
     { href: "/admin", label: mn.nav.admin },
     { href: "/admin/classes", label: mn.nav.classes },
@@ -23,8 +25,8 @@ const links: Record<Role, { href: string; label: string }[]> = {
     { href: "/accountant/payments", label: mn.nav.payments },
     { href: "/accountant/report", label: mn.nav.foodReport },
   ],
-  PARENT: [{ href: "/parent", label: mn.nav.myChildren }],
-};
+  PARENT: [],
+});
 
 function isActive(pathname: string, href: string, all: string[]) {
   if (pathname === href) return true;
@@ -34,16 +36,17 @@ function isActive(pathname: string, href: string, all: string[]) {
 }
 
 export function Nav({ role }: { role: Role }) {
+  const mn = useT();
   const pathname = usePathname();
-  const items = links[role];
+  const items = linksFor(mn)[role];
   const hrefs = items.map((l) => l.href);
   return (
     <nav className="border-b border-rule bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center gap-5 px-5">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 sm:gap-5">
         <Link href="/" className="py-2.5" aria-label={mn.brand}>
           <Brand />
         </Link>
-        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto text-sm">
+        <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto text-[15px]">
           {items.map((l) => {
             const active = isActive(pathname, l.href, hrefs);
             return (
@@ -58,6 +61,7 @@ export function Nav({ role }: { role: Role }) {
             );
           })}
         </div>
+        <LanguageSwitch />
         <span className="hidden rounded-sm bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand sm:inline">{mn.roles[role]}</span>
         <form action={logoutAction}>
           <button className={buttonClass("quiet", "sm")}>{mn.nav.logout}</button>

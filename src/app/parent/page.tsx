@@ -6,10 +6,10 @@ import { studentBalances } from "@/services/payments";
 import { getSchedule } from "@/services/schedule";
 import { ScheduleView } from "@/components/ScheduleView";
 import { Money } from "@/components/Money";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function ParentHome() {
+  const mn = await getT();
   const actor = await requirePage("PARENT");
   const children = await listChildren(actor.userId);
   if (children.length === 0) return <p className="text-ink-muted">{mn.parent.noChildren}</p>;
@@ -31,7 +31,7 @@ export default async function ParentHome() {
         </section>
       ))}
       <section>
-        <PageHeader title={mn.parent.selectChild} />
+        <h1 className="sr-only">{mn.parent.selectChild}</h1>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {children.map((s, i) => (
             <li key={s.id}>
@@ -42,7 +42,7 @@ export default async function ParentHome() {
                 </span>
                 <span className="text-right">
                   <span className="block text-xs text-ink-muted">{mn.parent.dueNow}</span>
-                  <Money v={dues[i]} className={`font-semibold ${dues[i] > 0 ? "text-due" : "text-present"}`} />
+                  <Money v={dues[i]} className={`text-xl font-semibold ${dues[i] > 0 ? "text-brand" : "text-present"}`} />
                 </span>
               </Link>
             </li>

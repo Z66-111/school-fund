@@ -6,9 +6,10 @@ import { ActionForm } from "@/components/ActionForm";
 import { Table } from "@/components/ui/Table";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { toISODate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const mn = await getT();
   await requirePage("ADMIN");
   const { id } = await params;
   const [closes, c] = await Promise.all([listMonthCloses(id), getClass(id)]);

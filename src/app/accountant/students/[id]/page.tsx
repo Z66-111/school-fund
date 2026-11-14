@@ -9,9 +9,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { prisma } from "@/lib/db";
 import { toISODate, todayDate } from "@/lib/dates";
 import { PAYMENT_KINDS } from "@/lib/roles";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const mn = await getT();
   const actor = await requirePage("ACCOUNTANT", "ADMIN");
   const { id } = await params;
   const student = await prisma.student.findUniqueOrThrow({ where: { id }, include: { class: true } });

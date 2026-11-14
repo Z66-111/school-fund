@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addStudent, setStudentActive, deleteStudent, linkParent, createParentForStudent, listStudents, listChildren } from "@/services/students";
+import { addStudent, setStudentActive, deleteStudent, linkParent, createParentForStudent, listStudents, listChildren, setDaycareEnrollment } from "@/services/students";
 import { prisma } from "@/lib/db";
 import { f, actorOf } from "../helpers/db";
 
@@ -12,8 +12,9 @@ async function setup() {
 describe("students", () => {
   it("teacher adds to own class; not to another; accountant forbidden", async () => {
     const { c, actor } = await setup();
-    const s = await addStudent(actor, { classId: c.id, name: "Бат" });
+    const s = await addStudent(actor, { classId: c.id, name: "Бат" }, new Date("2026-10-20T20:00:00Z")); // already the 21st in Ulaanbaatar
     expect(s.isActive).toBe(true);
+    expect([s.daycareFrom?.toISOString().slice(0, 10), s.daycareUntil]).toEqual(["2026-10-21", null]); // enrolled in daycare by default
     const other = await f.klass();
     await expect(addStudent(actor, { classId: other.id, name: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     const acc = await f.user("ACCOUNTANT");
@@ -53,5 +54,22 @@ describe("students", () => {
     expect(p.role).toBe("PARENT");
     const list = await listStudents(c.id);
     expect(list[0].parents[0].parent.email).toBe("mom@x.mn");
+  });
+  it("daycare enrolment: sets a start and optional end, validates the order, clears with an empty start", async () => {
+    const { c, actor } = await setup();
+    const s = await f.student(c.id);
+    const get = () => prisma.student.findUniqueOrThrow({ where: { id: s.id }, select: { daycareFrom: true, daycareUntil: true } });
+    const iso = (d: Date | null) => d?.toISOString().slice(0, 10) ?? null;
+    await setDaycareEnrollment(actor, { studentId: s.id, from: "2026-10-01", until: "" });
+    expect([iso((await get()).daycareFrom), iso((await get()).daycareUntil)]).toEqual(["2026-10-01", null]);
+    await setDaycareEnrollment(actor, { studentId: s.id, from: "2026-10-01", until: "2026-12-18" });
+    expect(iso((await get()).daycareUntil)).toBe("2026-12-18");
+    await expect(setDaycareEnrollment(actor, { studentId: s.id, from: "2026-10-01", until: "2026-09-30" })).rejects.toMatchObject({ code: "VALIDATION", fieldErrors: { until: expect.any(Array) } });
+    await expect(setDaycareEnrollment(actor, { studentId: s.id, from: "1 Oct", until: "" })).rejects.toMatchObject({ code: "VALIDATION" });
+    await expect(setDaycareEnrollment(actor, { studentId: s.id, from: "2026-02-31", until: "" })).rejects.toMatchObject({ code: "VALIDATION" });
+    await setDaycareEnrollment(actor, { studentId: s.id, from: "", until: "2026-12-18" });
+    expect(await get()).toEqual({ daycareFrom: null, daycareUntil: null });
+    await expect(setDaycareEnrollment(actorOf(await f.user("TEACHER")), { studentId: s.id, from: "2026-10-01" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(setDaycareEnrollment(actorOf(await f.user("ACCOUNTANT")), { studentId: s.id, from: "2026-10-01" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

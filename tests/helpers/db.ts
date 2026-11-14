@@ -14,6 +14,7 @@ export async function resetDb() {
     prisma.monthClose.deleteMany(),
     prisma.attendance.deleteMany(),
     prisma.daycareAttendance.deleteMany(),
+    prisma.daycareSkip.deleteMany(),
     prisma.parentStudent.deleteMany(),
     prisma.student.deleteMany(),
     prisma.class.deleteMany(),

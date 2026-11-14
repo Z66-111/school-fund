@@ -1,9 +1,10 @@
 import { Table } from "@/components/ui/Table";
 import { slotKey, WEEKDAYS, type Schedule } from "@/services/schedule";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 /** Read-only timetable; hides periods that have neither a subject nor a time. */
-export function ScheduleView({ s }: { s: Schedule }) {
+export async function ScheduleView({ s }: { s: Schedule }) {
+  const mn = await getT();
   const days = Array.from({ length: WEEKDAYS }, (_, i) => i + 1);
   const rows = s.periods.filter((p) => p.startTime || p.endTime || days.some((d) => s.slots[slotKey(d, p.period)]));
   if (rows.length === 0) return <p className="text-sm text-ink-muted">{mn.common.empty}</p>;

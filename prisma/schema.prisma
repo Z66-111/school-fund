@@ -62,6 +62,9 @@ model Class {
   dailyFoodRate    Int
   dailyDaycareRate Int        @default(27000)
   annualFundAmount Int
+  // Shown to the class's parents as a scrolling banner; empty means no announcement.
+  announcement     String     @default("")
+  announcementAt   DateTime?
 
   students    Student[]
   monthCloses MonthClose[]
@@ -78,10 +81,14 @@ model Student {
   class    Class   @relation(fields: [classId], references: [id])
   name     String
   isActive Boolean @default(true)
+  // Өдөр өнжүүлэх enrolment window (inclusive). No start date means not enrolled; no end date means until the school year ends.
+  daycareFrom  DateTime?
+  daycareUntil DateTime?
 
   parents         ParentStudent[]
   attendance      Attendance[]
   daycareDays     DaycareAttendance[]
+  daycareSkips    DaycareSkip[]
   invoices        FoodInvoice[]
   daycareInvoices DaycareInvoice[]
   payments        Payment[]
@@ -106,8 +113,20 @@ model Attendance {
   @@unique([studentId, date])
 }
 
-// A day the student stayed for Өдөр өнжүүлэх; billed at the class's dailyDaycareRate. Marked separately from class attendance.
+// Legacy: days ticked as "stayed" under the old pay-per-day Өдөр өнжүүлэх rule. No longer read by the app;
+// kept so old records are not lost. `npm run db:daycare-convert` turns them into enrolment + skipped days.
 model DaycareAttendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  date      DateTime
+
+  @@unique([studentId, date])
+}
+
+// A school day an enrolled student did not stay for Өдөр өнжүүлэх. The month is prepaid in full,
+// so each skipped day is deducted (at the daily rate) from the following month's charge.
+model DaycareSkip {
   id        String   @id @default(cuid())
   studentId String
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -156,7 +175,10 @@ model DaycareInvoice {
   monthClose   MonthClose @relation(fields: [monthCloseId], references: [id], onDelete: Cascade)
   year         Int
   month        Int
+  // Prepaid rule: school days charged for the month. (Old pay-per-day invoices: days stayed.)
   daysPresent  Int
+  // Days taken off this month's charge for days skipped earlier. amount = (daysPresent - deductedDays) * rate.
+  deductedDays Int        @default(0)
   rate         Int
   amount       Int
   createdAt    DateTime   @default(now())

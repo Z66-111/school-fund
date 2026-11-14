@@ -4,16 +4,19 @@ import { homeFor } from "@/lib/page-auth";
 import { loginAction } from "@/actions/auth";
 import { ActionForm } from "@/components/ActionForm";
 import { Field } from "@/components/ui/Field";
-import Image from "next/image";
-import { mn } from "@/lib/i18n/mn";
+import { Brand } from "@/components/ui/Brand";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { getT } from "@/lib/i18n/server";
 
 export default async function LoginPage() {
+  const mn = await getT();
   const actor = await getActor();
   if (actor) redirect(homeFor(actor.role));
   return (
     <main className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center px-5">
+      <div className="mb-6 flex justify-end"><LanguageSwitch /></div>
       <div className="mb-8 flex flex-col items-center text-center">
-        <Image src="/brand/logo.png" alt={mn.brand} width={220} height={155} priority />
+        <Brand size="lg" />
         <h1 className="sr-only">{mn.app}</h1>
         <p className="mt-3 text-sm text-ink-muted">{mn.login.tagline}</p>
       </div>

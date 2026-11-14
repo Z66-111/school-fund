@@ -11,9 +11,10 @@ import { Money } from "@/components/Money";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { buttonClass } from "@/components/ui/Button";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const mn = await getT();
   const actor = await requirePage("PARENT");
   const { id } = await params;
   let allowed = true;
@@ -31,11 +32,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const items = [
     ...b.invoices
       .filter((i) => i.outstanding > 0)
-      .map((i) => ({ key: i.id, label: `${mn.payment.FOOD}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, provisional: i.provisional })),
+      .map((i) => ({ key: i.id, label: `${mn.payment.FOOD}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, note: i.provisional ? mn.invoice.runningNote : "" })),
     ...b.daycareInvoices
       .filter((i) => i.outstanding > 0)
-      .map((i) => ({ key: i.id, label: `${mn.payment.DAYCARE}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, provisional: i.provisional })),
-    ...(b.fundDue > 0 ? [{ key: "fund", label: mn.payment.ANNUAL_FUND, amount: b.fundDue, provisional: false }] : []),
+      .map((i) => ({ key: i.id, label: `${mn.payment.DAYCARE}, ${i.year} ${mn.months[i.month - 1]}`, amount: i.outstanding, note: i.deductedDays ? mn.invoice.daycareDeductedNote.replace("{n}", String(i.deductedDays)) : "" })),
+    ...(b.fundDue > 0 ? [{ key: "fund", label: mn.payment.ANNUAL_FUND, amount: b.fundDue, note: "" }] : []),
   ];
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -44,7 +45,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </PageHeader>
       <section className={`panel border-l-4 ${total > 0 ? "border-l-due" : "border-l-present"}`}>
         <div className="text-sm text-ink-muted">{mn.parent.dueNow}</div>
-        <div className={`num text-4xl font-semibold leading-tight ${total > 0 ? "text-due" : "text-present"}`}><Money v={total} /></div>
+        <div className={`num text-[2.5rem] font-semibold leading-tight sm:text-5xl ${total > 0 ? "text-brand" : "text-present"}`}><Money v={total} /></div>
         {total === 0 && <p className="mt-1 text-sm text-present">{mn.parent.nothingDue}</p>}
         {b.foodCredit + b.daycareCredit > 0 && (
           <p className="mt-1 text-sm text-ink-muted">{mn.invoice.credit}: <Money v={b.foodCredit + b.daycareCredit} /></p>
@@ -63,12 +64,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <li key={it.key} className="flex items-center justify-between gap-3 px-4 py-3">
                 <span>
                   {it.label}
-                  {it.provisional && <span className="block text-xs text-ink-muted">{mn.invoice.runningNote}</span>}
+                  {it.note && <span className="block text-xs text-ink-muted">{it.note}</span>}
                 </span>
                 <Money v={it.amount} className="font-semibold" />
               </li>
             ))}
           </ul>
+          {b.daycareInvoices.length > 0 && <p className="mt-2 text-xs text-ink-muted">{mn.invoice.daycareNote}</p>}
         </section>
       )}
       <Link href={`/parent/students/${id}/detail`} className="panel flex items-center justify-between gap-3 hover:border-brand">

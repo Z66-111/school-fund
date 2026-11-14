@@ -7,9 +7,10 @@ import { Table } from "@/components/ui/Table";
 import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { toISODate, todayDate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const mn = await getT();
   const { id } = await params;
   const actor = await requireClassPage(id, "TEACHER", "ADMIN");
   const isTeacher = actor.role === "TEACHER";

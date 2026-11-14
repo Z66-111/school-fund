@@ -8,9 +8,10 @@ import { Table } from "@/components/ui/Table";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
 import { buttonClass } from "@/components/ui/Button";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+  const mn = await getT();
   const actor = await requirePage("ADMIN");
   const sp = await searchParams;
   const years = await listSchoolYears();

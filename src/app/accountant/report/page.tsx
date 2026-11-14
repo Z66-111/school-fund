@@ -6,9 +6,10 @@ import { FoodReportView } from "@/components/FoodReport";
 import { MonthPicker } from "@/components/MonthPicker";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { todayDate } from "@/lib/dates";
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ classId?: string; year?: string; month?: string }> }) {
+  const mn = await getT();
   const actor = await requirePage("ACCOUNTANT", "ADMIN");
   const sp = await searchParams;
   const year0 = await getActiveSchoolYear();

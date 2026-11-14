@@ -1,7 +1,8 @@
-import { mn } from "@/lib/i18n/mn";
+import { getT } from "@/lib/i18n/server";
 import { buttonClass } from "@/components/ui/Button";
 
-export function MonthPicker({ year, month, extra }: { year: number; month: number; extra?: React.ReactNode }) {
+export async function MonthPicker({ year, month, extra }: { year: number; month: number; extra?: React.ReactNode }) {
+  const mn = await getT();
   const years = [year - 1, year, year + 1];
   return (
     <form className="mb-4 flex flex-wrap items-center gap-2 text-sm">

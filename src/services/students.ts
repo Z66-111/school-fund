@@ -5,22 +5,42 @@ import { parse } from "@/lib/validate";
 import { AppError, ValidationError } from "@/lib/errors";
 import { createUser } from "@/services/users";
 import { normalizeEmail } from "@/services/auth";
+import { parseDateOnly, todayDate } from "@/lib/dates";
+import { dateStringSchema } from "@/services/school-years";
 import { mn } from "@/lib/i18n/mn";
 import type { Actor } from "@/lib/roles";
 
 const addSchema = z.object({ classId: z.string().min(1), name: z.string().trim().min(1, mn.errors.required) });
 
-export async function addStudent(actor: Actor, input: unknown) {
+/** New students are enrolled in Өдөр өнжүүлэх from the day they are added; the teacher can change or remove that on the students page. */
+export async function addStudent(actor: Actor, input: unknown, now: Date = new Date()) {
   requireRole(actor, "TEACHER", "ADMIN");
   const v = parse(addSchema, input);
   await assertClassAccess(actor, v.classId);
-  return prisma.student.create({ data: v });
+  return prisma.student.create({ data: { ...v, daycareFrom: todayDate(now) } });
 }
 
 export async function setStudentActive(actor: Actor, studentId: string, isActive: boolean): Promise<void> {
   requireRole(actor, "TEACHER", "ADMIN");
   await assertStudentAccess(actor, studentId);
   await prisma.student.update({ where: { id: studentId }, data: { isActive } });
+}
+
+const optionalDate = z.string().trim().refine((v) => v === "" || dateStringSchema.safeParse(v).success, mn.errors.invalidDate);
+const daycareSchema = z.object({ studentId: z.string().min(1), from: optionalDate.default(""), until: optionalDate.default("") });
+
+/**
+ * Enrols a student in Өдөр өнжүүлэх from a start date, optionally up to an end date. An empty
+ * start date removes the enrolment; charges of months already closed stay as they are.
+ */
+export async function setDaycareEnrollment(actor: Actor, input: unknown): Promise<void> {
+  requireRole(actor, "TEACHER", "ADMIN");
+  const v = parse(daycareSchema, input);
+  await assertStudentAccess(actor, v.studentId);
+  const from = v.from ? parseDateOnly(v.from) : null;
+  const until = from && v.until ? parseDateOnly(v.until) : null;
+  if (from && until && until.getTime() < from.getTime()) throw new ValidationError({ until: [mn.errors.daycareUntilBeforeFrom] });
+  await prisma.student.update({ where: { id: v.studentId }, data: { daycareFrom: from, daycareUntil: until } });
 }
 
 export async function deleteStudent(actor: Actor, studentId: string): Promise<void> {
