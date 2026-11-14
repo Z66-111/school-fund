@@ -32,9 +32,13 @@ test("teacher posts an announcement, the parent sees it moving in the banner, cl
 
   await page.goto(url);
   if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/teacher-announcement.png` });
-  await page.fill('textarea[name="text"]', "");
-  await page.click('button:has-text("Зарлал хадгалах")');
-  await expect(page.getByRole("status")).toContainText("Зарлал арилгалаа");
+  // React puts a textarea's server-rendered text back when it hydrates, so an edit made before
+  // that (a slow CI runner gets there first) is lost. Retry until the cleared value is what is saved.
+  await expect(async () => {
+    await page.fill('textarea[name="text"]', "");
+    await page.click('button:has-text("Зарлал хадгалах")');
+    await expect(page.getByRole("status")).toContainText("Зарлал арилгалаа", { timeout: 3000 });
+  }).toPass({ timeout: 30_000 });
   await parent.reload();
   await expect(parent.getByRole("complementary", { name: "Зарлал" })).toHaveCount(0);
   await parentCtx.close();
