@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:turso-copy": "tsx prisma/turso-copy.ts",
+    "db:turso-export": "tsx prisma/turso-export.ts",
     "db:daycare-convert": "tsx prisma/daycare-convert.ts",
     "e2e": "playwright test",
     "postinstall": "prisma generate"

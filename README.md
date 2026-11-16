@@ -68,7 +68,16 @@ The app runs on Vercel; the database is Turso (hosted SQLite). When
 
 Needs a host with the **Setup Node.js App** icon (CloudLinux Node.js
 Selector + Passenger); plain shared hosting cannot run Next.js. The database
-stays on Turso, so no data move is needed.
+is a SQLite file on the host's own disk, kept outside the app folder and
+outside `public_html` (e.g. `/home/<user>/angisan-data/prod.db`) so deploys
+never touch it and it cannot be downloaded from the web. Turso is not used.
+
+**The database file**: build it on your own machine and upload it. Coming from
+Turso, `npm run db:turso-export -- /absolute/path/prod.db` (with
+`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` set) creates the tables and copies
+every row. Starting empty, `DATABASE_URL=file:/absolute/path/prod.db npx prisma db push`
+then `npm run db:seed` with the same variable. Back the file up regularly; it
+is the only copy of the data.
 
 1. **Build locally** (`npm run build`; shared hosts run out of memory
    building). Zip the project without `node_modules`, `.git`, `test-results`,
@@ -78,8 +87,9 @@ stays on Turso, so no data move is needed.
 2. **Create the app**: Node.js 20.9+ (22 if offered), mode *Development* for
    now, application root `school-fund`, startup file `server.js`, URL = your
    domain.
-3. **Environment variables**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
-   `DATABASE_URL=file:./unused.db`.
+3. **Environment variables**: `DATABASE_URL=file:/home/<user>/angisan-data/prod.db`
+   (an absolute path). Leave `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`
+   unset, or the app talks to Turso instead of the file.
    Also set `APP_ORIGIN` to the site's public address, e.g.
    `https://angisan.mn` (no trailing slash). After a login or a saved form the
    app fetches the next page from its own address; under Passenger it has no
